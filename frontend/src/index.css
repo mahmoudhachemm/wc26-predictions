@@ -5837,3 +5837,132 @@ body,
     width: 100% !important;
   }
 }
+
+@media (max-width: 600px) {
+  .match-team,
+  .fixture-team {
+    min-width: 90px;
+    max-width: 120px;
+  }
+
+  .team-name,
+  .match-team-name,
+  .fixture-team-name {
+    font-size: 18px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+}
+/* Strong mobile fix for team names */
+@media (max-width: 600px) {
+  .match-row,
+  .match-card,
+  .fixture-card,
+  .prediction-card {
+    overflow: hidden;
+  }
+
+  .team,
+  .team-box,
+  .team-side,
+  .match-team,
+  .fixture-team,
+  .prediction-team {
+    min-width: 95px;
+    max-width: 115px;
+    flex-shrink: 0;
+  }
+
+  .team h3,
+  .team p,
+  .team span,
+  .team-name,
+  .team-label,
+  .match-team-name,
+  .fixture-team-name,
+  .prediction-team-name {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.1;
+  }
+}
+/* MOBILE FIX: stop long team names like Switzerland / Netherlands from breaking */
+@media (max-width: 600px) {
+  /* Make match rows use space better */
+  .match-card,
+  .fixture-card,
+  .prediction-card,
+  .user-match-card,
+  .match-row {
+    gap: 6px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  /* Make score boxes smaller so team names get more space */
+  input[type="number"],
+  .score-input,
+  .prediction-input,
+  .result-input {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    font-size: 15px !important;
+    padding: 2px !important;
+  }
+
+  /* Any element that contains team text */
+  .team,
+  .team-box,
+  .team-side,
+  .match-team,
+  .fixture-team,
+  .prediction-team,
+  .home-team,
+  .away-team {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Force team names to stay in one line */
+  .team-name,
+  .team-label,
+  .match-team-name,
+  .fixture-team-name,
+  .prediction-team-name,
+  .team span,
+  .team p,
+  .team h3,
+  .match-team span,
+  .fixture-team span,
+  .prediction-team span,
+  .home-team span,
+  .away-team span,
+  .home-team,
+  .away-team {
+    font-size: 12px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    letter-spacing: -0.4px !important;
+  }
+}
+/* TEST ONLY: make all mobile text very small */
+@media (max-width: 600px) {
+  * {
+    font-size: 12px !important;
+    line-height: 1 !important;
+  }
+
+  input,
+  button,
+  select,
+  textarea {
+    font-size: 12px !important;
+  }
+}

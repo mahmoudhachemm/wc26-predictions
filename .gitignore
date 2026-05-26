@@ -7,3 +7,5 @@ backend/.env
 frontend/.env
 
 frontend/dist
+
+command.txt
