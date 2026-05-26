@@ -1,5 +1,6 @@
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+
+export default API_URL;
 
 export async function apiRequest(path, options = {}) {
   const currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
