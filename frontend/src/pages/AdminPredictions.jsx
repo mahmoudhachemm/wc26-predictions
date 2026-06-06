@@ -35,10 +35,6 @@ function AdminPredictions() {
     return cleanId(prediction?.fixtureId || prediction?.fixture);
   }
 
-  function getPredictionUserId(prediction) {
-    return cleanId(prediction?.userId || prediction?.user);
-  }
-
   function getPredictionUserName(prediction) {
     return (
       prediction?.userName ||
@@ -50,10 +46,7 @@ function AdminPredictions() {
   }
 
   function getPredictionUserKey(prediction) {
-    const id = getPredictionUserId(prediction);
-    const name = getPredictionUserName(prediction);
-
-    return (id || name).toString().trim().toLowerCase();
+    return getPredictionUserName(prediction).toString().trim().toLowerCase();
   }
 
   function getFixture(fixtureId) {
@@ -74,14 +67,6 @@ function AdminPredictions() {
 
       setFixtures(fixturesData || []);
       setPredictions(predictionsData || []);
-
-      console.log("PREDICTIONS FROM API:", predictionsData);
-console.log(
-  "USERS IN PREDICTIONS:",
-  [...new Set((predictionsData || []).map((p) => {
-    return p.userName || p.user?.fullName || p.user || p.userId;
-  }))]
-);
 
       if (
         (fixturesData || []).some(
@@ -120,16 +105,14 @@ console.log(
 
   const predictionsAfterRoundAndMatch = useMemo(() => {
     return predictions.filter((prediction) => {
-      const fixture = getFixture(getPredictionFixtureId(prediction));
+      const predictionFixtureId = getPredictionFixtureId(prediction);
+      const fixture = getFixture(predictionFixtureId);
 
       if (selectedRound && fixture?.gameweek !== selectedRound) {
         return false;
       }
 
-      if (
-        selectedFixture &&
-        getPredictionFixtureId(prediction) !== selectedFixture
-      ) {
+      if (selectedFixture && predictionFixtureId !== selectedFixture) {
         return false;
       }
 
@@ -144,7 +127,7 @@ console.log(
       const key = getPredictionUserKey(prediction);
       const name = getPredictionUserName(prediction);
 
-      if (key) {
+      if (key && name !== "Unknown User") {
         usersMap.set(key, {
           id: key,
           name,
@@ -159,11 +142,8 @@ console.log(
 
   const filteredPredictions = useMemo(() => {
     return predictionsAfterRoundAndMatch.filter((prediction) => {
-      if (selectedUser && getPredictionUserKey(prediction) !== selectedUser) {
-        return false;
-      }
-
-      return true;
+      if (!selectedUser) return true;
+      return getPredictionUserKey(prediction) === selectedUser;
     });
   }, [predictionsAfterRoundAndMatch, selectedUser]);
 

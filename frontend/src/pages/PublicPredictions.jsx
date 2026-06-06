@@ -50,10 +50,7 @@ function PublicPredictions({ currentUser }) {
   }
 
   function getPredictionUserKey(prediction) {
-    const id = getPredictionUserId(prediction);
-    const name = getPredictionUserName(prediction);
-
-    return (id || name).toString().trim().toLowerCase();
+    return getPredictionUserName(prediction).toString().trim().toLowerCase();
   }
 
   function getFixture(fixtureId) {
@@ -123,7 +120,8 @@ function PublicPredictions({ currentUser }) {
 
   const predictionsAfterRoundAndMatch = useMemo(() => {
     return predictions.filter((prediction) => {
-      const fixture = getFixture(getPredictionFixtureId(prediction));
+      const predictionFixtureId = getPredictionFixtureId(prediction);
+      const fixture = getFixture(predictionFixtureId);
 
       if (!fixture) return false;
 
@@ -134,10 +132,7 @@ function PublicPredictions({ currentUser }) {
         return false;
       }
 
-      if (
-        selectedFixture &&
-        getPredictionFixtureId(prediction) !== selectedFixture
-      ) {
+      if (selectedFixture && predictionFixtureId !== selectedFixture) {
         return false;
       }
 
@@ -152,7 +147,7 @@ function PublicPredictions({ currentUser }) {
       const key = getPredictionUserKey(prediction);
       const name = getPredictionUserName(prediction);
 
-      if (key) {
+      if (key && name !== "Unknown User") {
         usersMap.set(key, {
           id: key,
           name,
@@ -167,11 +162,8 @@ function PublicPredictions({ currentUser }) {
 
   const visiblePredictions = useMemo(() => {
     return predictionsAfterRoundAndMatch.filter((prediction) => {
-      if (selectedUser && getPredictionUserKey(prediction) !== selectedUser) {
-        return false;
-      }
-
-      return true;
+      if (!selectedUser) return true;
+      return getPredictionUserKey(prediction) === selectedUser;
     });
   }, [predictionsAfterRoundAndMatch, selectedUser]);
 
@@ -311,7 +303,7 @@ function PublicPredictions({ currentUser }) {
                     className={`public-predictions-row ${
                       predictionUserId === getCurrentUserId() ? "my-public-row" : ""
                     }`}
-                    key={prediction.id}
+                    key={prediction.id || prediction._id}
                   >
                     <span>{fixture?.gameweek || prediction.gameweek}</span>
 
