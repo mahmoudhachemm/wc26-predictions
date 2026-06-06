@@ -13,21 +13,87 @@ function PublicPredictions({ currentUser }) {
 
   const [selectedRound, setSelectedRound] = useState("");
   const [selectedFixture, setSelectedFixture] = useState("");
+  const [selectedUser, setSelectedUser] = useState("");
+
+  function normalizeId(value) {
+    if (!value) return "";
+
+    if (typeof value === "string") return value;
+
+    if (value._id) return String(value._id);
+    if (value.id) return String(value.id);
+
+    return String(value);
+  }
+
+  function getCurrentUserId() {
+    return normalizeId(currentUser?._id || currentUser?.id);
+  }
+
+  function getFixtureId(fixture) {
+    return normalizeId(fixture?._id || fixture?.id);
+  }
+
+  function getPredictionId(prediction) {
+    return normalizeId(prediction?._id || prediction?.id);
+  }
+
+  function getPredictionFixtureId(prediction) {
+    return normalizeId(
+      prediction?.fixtureId ||
+        prediction?.fixture?._id ||
+        prediction?.fixture?.id ||
+        prediction?.fixture
+    );
+  }
+
+  function getPredictionUserId(prediction) {
+    return normalizeId(
+      prediction?.userId ||
+        prediction?.user?._id ||
+        prediction?.user?.id ||
+        prediction?.user
+    );
+  }
+
+  function getPredictionUserName(prediction) {
+    return (
+      prediction?.userName ||
+      prediction?.user?.fullName ||
+      prediction?.user?.name ||
+      prediction?.user?.email ||
+      "Unknown User"
+    );
+  }
+
+  function getUserFilterKey(prediction) {
+    const id = getPredictionUserId(prediction);
+    const name = getPredictionUserName(prediction);
+
+    return (id || name).toString().trim().toLowerCase();
+  }
+
+  function getFixture(fixtureId) {
+    const cleanId = normalizeId(fixtureId);
+
+    return fixtures.find((fixture) => getFixtureId(fixture) === cleanId);
+  }
 
   async function loadData() {
     try {
       setLoading(true);
 
-      const [fixturesData, predictionsData, savedCurrentRound] = await Promise.all([
-        apiRequest("/fixtures"),
-        apiRequest("/predictions/public"),
-        getCurrentRound(),
-      ]);
+      const [fixturesData, predictionsData, savedCurrentRound] =
+        await Promise.all([
+          apiRequest("/fixtures"),
+          apiRequest("/predictions/public"),
+          getCurrentRound(),
+        ]);
 
-      setFixtures(fixturesData);
-      setPredictions(predictionsData);
+      setFixtures(fixturesData || []);
+      setPredictions(predictionsData || []);
 
-      const currentRoundHasVisibleFixtures = fixturesData.some(
+      const currentRoundHasVisibleFixtures = (fixturesData || []).some(
         (fixture) =>
           fixture.gameweek === savedCurrentRound &&
           (fixture.isLocked || fixture.status === "finished")
@@ -35,8 +101,12 @@ function PublicPredictions({ currentUser }) {
 
       if (currentRoundHasVisibleFixtures) {
         setSelectedRound(savedCurrentRound);
-        setSelectedFixture("");
+      } else {
+        setSelectedRound("");
       }
+
+      setSelectedFixture("");
+      setSelectedUser("");
     } catch (err) {
       alert(err.message || "Failed to load public predictions");
     } finally {
@@ -47,10 +117,6 @@ function PublicPredictions({ currentUser }) {
   useEffect(() => {
     loadData();
   }, []);
-
-  function getFixture(fixtureId) {
-    return fixtures.find((fixture) => fixture.id === fixtureId);
-  }
 
   const visibleFixtures = useMemo(() => {
     return fixtures.filter(
@@ -73,27 +139,57 @@ function PublicPredictions({ currentUser }) {
     });
   }, [visibleFixtures, selectedRound]);
 
-  const visiblePredictions = useMemo(() => {
+  const visiblePredictionsWithoutUser = useMemo(() => {
     return predictions.filter((prediction) => {
-      const fixture = getFixture(prediction.fixtureId);
+      const predictionFixtureId = getPredictionFixtureId(prediction);
+      const fixture = getFixture(predictionFixtureId);
 
       if (!fixture) return false;
 
       const canShow = fixture.isLocked || fixture.status === "finished";
-
       if (!canShow) return false;
 
       if (selectedRound && fixture.gameweek !== selectedRound) {
         return false;
       }
 
-      if (selectedFixture && fixture.id !== selectedFixture) {
+      if (selectedFixture && predictionFixtureId !== selectedFixture) {
         return false;
       }
 
       return true;
     });
   }, [predictions, fixtures, selectedRound, selectedFixture]);
+
+  const userOptions = useMemo(() => {
+    const usersMap = new Map();
+
+    visiblePredictionsWithoutUser.forEach((prediction) => {
+      const key = getUserFilterKey(prediction);
+      const name = getPredictionUserName(prediction);
+
+      if (key) {
+        usersMap.set(key, {
+          id: key,
+          name,
+        });
+      }
+    });
+
+    return [...usersMap.values()].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [visiblePredictionsWithoutUser]);
+
+  const visiblePredictions = useMemo(() => {
+    return visiblePredictionsWithoutUser.filter((prediction) => {
+      if (selectedUser && getUserFilterKey(prediction) !== selectedUser) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [visiblePredictionsWithoutUser, selectedUser]);
 
   async function handleResetFilters() {
     try {
@@ -106,9 +202,11 @@ function PublicPredictions({ currentUser }) {
       }
 
       setSelectedFixture("");
+      setSelectedUser("");
     } catch {
       setSelectedRound("");
       setSelectedFixture("");
+      setSelectedUser("");
     }
   }
 
@@ -124,7 +222,10 @@ function PublicPredictions({ currentUser }) {
             <p>Predictions appear only after a game is locked.</p>
           </div>
 
-          <button className="leaderboard-back-btn" onClick={() => navigate("/user")}>
+          <button
+            className="leaderboard-back-btn"
+            onClick={() => navigate("/user")}
+          >
             Back
           </button>
         </div>
@@ -137,9 +238,11 @@ function PublicPredictions({ currentUser }) {
               onChange={(e) => {
                 setSelectedRound(e.target.value);
                 setSelectedFixture("");
+                setSelectedUser("");
               }}
             >
               <option value="">All Rounds</option>
+
               {roundOptions.map((round) => (
                 <option key={round} value={round}>
                   {round}
@@ -152,12 +255,33 @@ function PublicPredictions({ currentUser }) {
             <label>Match</label>
             <select
               value={selectedFixture}
-              onChange={(e) => setSelectedFixture(e.target.value)}
+              onChange={(e) => {
+                setSelectedFixture(e.target.value);
+                setSelectedUser("");
+              }}
             >
               <option value="">All Matches</option>
+
               {matchOptions.map((fixture) => (
-                <option key={fixture.id} value={fixture.id}>
+                <option key={getFixtureId(fixture)} value={getFixtureId(fixture)}>
                   {fixture.teamA} vs {fixture.teamB}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label>User</label>
+            <select
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+            >
+              <option value="">All Users</option>
+
+              {userOptions.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                  {user.id === getCurrentUserId() ? " You" : ""}
                 </option>
               ))}
             </select>
@@ -181,7 +305,7 @@ function PublicPredictions({ currentUser }) {
           ) : visiblePredictions.length === 0 ? (
             <div className="empty-state">
               <h3>No predictions visible</h3>
-              <p>No users predicted the selected locked match yet.</p>
+              <p>No predictions match the selected filters.</p>
             </div>
           ) : (
             <div className="public-predictions-table">
@@ -195,14 +319,16 @@ function PublicPredictions({ currentUser }) {
               </div>
 
               {visiblePredictions.map((prediction) => {
-                const fixture = getFixture(prediction.fixtureId);
+                const predictionId = getPredictionId(prediction);
+                const predictionUserId = getPredictionUserId(prediction);
+                const fixture = getFixture(getPredictionFixtureId(prediction));
 
                 return (
                   <div
                     className={`public-predictions-row ${
-                      prediction.userId === currentUser.id ? "my-public-row" : ""
+                      predictionUserId === getCurrentUserId() ? "my-public-row" : ""
                     }`}
-                    key={prediction.id}
+                    key={predictionId}
                   >
                     <span>{fixture?.gameweek || prediction.gameweek}</span>
 
@@ -213,8 +339,8 @@ function PublicPredictions({ currentUser }) {
                     </span>
 
                     <span>
-                      {prediction.userName}
-                      {prediction.userId === currentUser.id && <small> You</small>}
+                      {getPredictionUserName(prediction)}
+                      {predictionUserId === getCurrentUserId() && <small> You</small>}
                     </span>
 
                     <span className="prediction-score-pill">
@@ -223,7 +349,7 @@ function PublicPredictions({ currentUser }) {
 
                     <span>
                       {prediction.isJoker ? (
-                        <strong className="joker-admin-pill">🃏 Joker</strong>
+                        <strong className="joker-admin-pill"> Joker</strong>
                       ) : (
                         "-"
                       )}
