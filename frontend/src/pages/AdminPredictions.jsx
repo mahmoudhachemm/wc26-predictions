@@ -13,16 +13,18 @@ function AdminPredictions() {
 
   const [selectedRound, setSelectedRound] = useState("");
   const [selectedFixture, setSelectedFixture] = useState("");
+  const [selectedUser, setSelectedUser] = useState("");
 
   async function loadData() {
     try {
       setLoading(true);
 
-      const [fixturesData, predictionsData, savedCurrentRound] = await Promise.all([
-        apiRequest("/fixtures"),
-        apiRequest("/predictions/all"),
-        getCurrentRound(),
-      ]);
+      const [fixturesData, predictionsData, savedCurrentRound] =
+        await Promise.all([
+          apiRequest("/fixtures"),
+          apiRequest("/predictions/all"),
+          getCurrentRound(),
+        ]);
 
       setFixtures(fixturesData);
       setPredictions(predictionsData);
@@ -30,6 +32,7 @@ function AdminPredictions() {
       if (fixturesData.some((fixture) => fixture.gameweek === savedCurrentRound)) {
         setSelectedRound(savedCurrentRound);
         setSelectedFixture("");
+        setSelectedUser("");
       }
     } catch (err) {
       alert(err.message || "Failed to load predictions");
@@ -58,6 +61,27 @@ function AdminPredictions() {
     });
   }, [fixtures, selectedRound]);
 
+  const userOptions = useMemo(() => {
+    const names = predictions
+      .filter((prediction) => {
+        const fixture = getFixture(prediction.fixtureId);
+
+        if (selectedRound && fixture?.gameweek !== selectedRound) {
+          return false;
+        }
+
+        if (selectedFixture && prediction.fixtureId !== selectedFixture) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((prediction) => prediction.userName)
+      .filter(Boolean);
+
+    return [...new Set(names)].sort();
+  }, [predictions, fixtures, selectedRound, selectedFixture]);
+
   const filteredPredictions = useMemo(() => {
     return predictions.filter((prediction) => {
       const fixture = getFixture(prediction.fixtureId);
@@ -70,9 +94,13 @@ function AdminPredictions() {
         return false;
       }
 
+      if (selectedUser && prediction.userName !== selectedUser) {
+        return false;
+      }
+
       return true;
     });
-  }, [predictions, selectedRound, selectedFixture, fixtures]);
+  }, [predictions, selectedRound, selectedFixture, selectedUser, fixtures]);
 
   async function handleDeletePrediction(predictionId) {
     const confirmed = window.confirm("Delete this prediction?");
@@ -102,30 +130,37 @@ function AdminPredictions() {
       }
 
       setSelectedFixture("");
+      setSelectedUser("");
     } catch {
       setSelectedRound("");
       setSelectedFixture("");
+      setSelectedUser("");
     }
   }
 
   return (
-    <div className="admin-bg-page" style={{ backgroundImage: `url(${bg})` }}>
-      <div className="admin-bg-overlay"></div>
-
-      <div className="admin-content">
-        <div className="admin-header">
+    <div
+      className="admin-page"
+      style={{
+        backgroundImage: `linear-gradient(rgba(3, 6, 18, 0.82), rgba(3, 6, 18, 0.88)), url(${bg})`,
+      }}
+    >
+      <div className="admin-shell">
+        <div className="admin-topbar">
           <div>
-            <p className="admin-kicker">Admin Mode</p>
+            <p className="eyebrow">Admin Mode</p>
             <h1>View Predictions</h1>
-            <p>Check all users’ predictions, jokers, and points.</p>
+            <p className="page-subtitle">
+              Check all users’ predictions, jokers, and points.
+            </p>
           </div>
 
-          <button className="admin-black-btn" onClick={() => navigate("/admin")}>
+          <button className="secondary-btn" onClick={() => navigate("/admin")}>
             Back
           </button>
         </div>
 
-        <div className="admin-prediction-filter-card">
+        <div className="admin-card admin-prediction-filter-card">
           <div>
             <label>Round</label>
             <select
@@ -133,9 +168,11 @@ function AdminPredictions() {
               onChange={(e) => {
                 setSelectedRound(e.target.value);
                 setSelectedFixture("");
+                setSelectedUser("");
               }}
             >
               <option value="">All Rounds</option>
+
               {roundOptions.map((round) => (
                 <option key={round} value={round}>
                   {round}
@@ -148,9 +185,13 @@ function AdminPredictions() {
             <label>Match</label>
             <select
               value={selectedFixture}
-              onChange={(e) => setSelectedFixture(e.target.value)}
+              onChange={(e) => {
+                setSelectedFixture(e.target.value);
+                setSelectedUser("");
+              }}
             >
               <option value="">All Matches</option>
+
               {matchOptions.map((fixture) => (
                 <option key={fixture.id} value={fixture.id}>
                   {fixture.teamA} vs {fixture.teamB}
@@ -159,87 +200,111 @@ function AdminPredictions() {
             </select>
           </div>
 
-          <button className="admin-filter-reset-btn" onClick={handleResetFilters}>
+          <div>
+            <label>User</label>
+            <select
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+            >
+              <option value="">All Users</option>
+
+              {userOptions.map((userName) => (
+                <option key={userName} value={userName}>
+                  {userName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            className="secondary-btn admin-filter-reset-btn"
+            onClick={handleResetFilters}
+          >
             Reset
           </button>
         </div>
 
-        <div className="admin-glass-card admin-predictions-card">
-          {loading ? (
-            <div className="empty-state">
-              <h3>Loading predictions...</h3>
+        {loading ? (
+          <div className="admin-card empty-card">
+            <h3>Loading predictions...</h3>
+          </div>
+        ) : filteredPredictions.length === 0 ? (
+          <div className="admin-card empty-card">
+            <h3>No predictions yet</h3>
+            <p>Predictions will appear here after users save them.</p>
+          </div>
+        ) : (
+          <div className="admin-card table-card">
+            <div className="table-scroll">
+              <table className="admin-table predictions-table">
+                <thead>
+                  <tr>
+                    <th>Round</th>
+                    <th>Match</th>
+                    <th>User</th>
+                    <th>Prediction</th>
+                    <th>Joker</th>
+                    <th>Points</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredPredictions.map((prediction) => {
+                    const fixture = getFixture(prediction.fixtureId);
+
+                    return (
+                      <tr key={prediction.id}>
+                        <td>{fixture?.gameweek || prediction.gameweek}</td>
+
+                        <td>
+                          {fixture
+                            ? `${fixture.teamA} vs ${fixture.teamB}`
+                            : `${prediction.teamA} vs ${prediction.teamB}`}
+                        </td>
+
+                        <td>{prediction.userName}</td>
+
+                        <td>
+                          {prediction.predictedScoreA} -{" "}
+                          {prediction.predictedScoreB}
+                        </td>
+
+                        <td>
+                          {prediction.isJoker ? (
+                            <span className="joker-badge">Joker</span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+
+                        <td>{prediction.points || 0}</td>
+
+                        <td>
+                          {fixture?.isLocked
+                            ? "locked"
+                            : fixture?.status || "upcoming"}
+                        </td>
+
+                        <td>
+                          <button
+                            className="danger-small-btn"
+                            onClick={() =>
+                              handleDeletePrediction(prediction.id)
+                            }
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ) : filteredPredictions.length === 0 ? (
-            <div className="empty-state">
-              <h3>No predictions yet</h3>
-              <p>Predictions will appear here after users save them.</p>
-            </div>
-          ) : (
-            <div className="admin-predictions-table">
-              <div className="admin-predictions-head">
-                <span>Round</span>
-                <span>Match</span>
-                <span>User</span>
-                <span>Prediction</span>
-                <span>Joker</span>
-                <span>Points</span>
-                <span>Status</span>
-                <span></span>
-              </div>
-
-              {filteredPredictions.map((prediction) => {
-                const fixture = getFixture(prediction.fixtureId);
-
-                return (
-                  <div className="admin-predictions-row" key={prediction.id}>
-                    <span>{fixture?.gameweek || prediction.gameweek}</span>
-
-                    <span>
-                      {fixture
-                        ? `${fixture.teamA} vs ${fixture.teamB}`
-                        : `${prediction.teamA} vs ${prediction.teamB}`}
-                    </span>
-
-                    <span>{prediction.userName}</span>
-
-                    <span className="prediction-score-pill">
-                      {prediction.predictedScoreA} - {prediction.predictedScoreB}
-                    </span>
-
-                    <span>
-                      {prediction.isJoker ? (
-                        <strong className="joker-admin-pill">🃏 Joker</strong>
-                      ) : (
-                        "-"
-                      )}
-                    </span>
-
-                    <span className="admin-points-pill">
-                      {prediction.points || 0}
-                    </span>
-
-                    <span
-                      className={`fixture-status ${
-                        fixture?.isLocked ? "locked" : fixture?.status || "upcoming"
-                      }`}
-                    >
-                      {fixture?.isLocked
-                        ? "locked"
-                        : fixture?.status || "upcoming"}
-                    </span>
-
-                    <button
-                      className="delete-small-btn"
-                      onClick={() => handleDeletePrediction(prediction.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

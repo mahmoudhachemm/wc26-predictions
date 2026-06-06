@@ -5966,3 +5966,77 @@ body,
     font-size: 12px !important;
   }
 }
+
+.admin-prediction-filter-card,
+.leaderboard-filter-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.admin-prediction-filter-card > div,
+.leaderboard-filter-card > div {
+  min-width: 0;
+}
+
+.admin-prediction-filter-card label,
+.leaderboard-filter-card label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.admin-prediction-filter-card select,
+.leaderboard-filter-card select {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(5, 7, 14, 0.75);
+  color: white;
+  padding: 0 18px;
+  font-weight: 800;
+  font-size: 15px;
+  outline: none;
+}
+
+.admin-filter-reset-btn,
+.leaderboard-reset-btn {
+  min-height: 56px;
+  padding: 0 34px;
+  border-radius: 18px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .admin-prediction-filter-card,
+  .leaderboard-filter-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-filter-reset-btn,
+  .leaderboard-reset-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-prediction-filter-card,
+  .leaderboard-filter-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .admin-prediction-filter-card select,
+  .leaderboard-filter-card select,
+  .admin-filter-reset-btn,
+  .leaderboard-reset-btn {
+    min-height: 50px;
+    border-radius: 15px;
+    font-size: 14px;
+  }
+}
