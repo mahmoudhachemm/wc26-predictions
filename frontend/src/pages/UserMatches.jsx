@@ -72,6 +72,7 @@ function UserMatches({ currentUser }) {
   const [fixtures, setFixtures] = useState([]);
   const [scores, setScores] = useState({});
   const [jokerByGw, setJokerByGw] = useState({});
+  const [chipByGw, setChipByGw] = useState({});
   const [selectedRound, setSelectedRound] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -111,9 +112,16 @@ function UserMatches({ currentUser }) {
 
       const scoresMap = {};
       const jokerMap = {};
+      const chipMap = {};
 
       myPredictions.forEach((prediction) => {
-        scoresMap[prediction.fixtureId] = {
+        const fixtureId =
+          prediction.fixtureId ||
+          prediction.fixture?._id ||
+          prediction.fixture?.id ||
+          prediction.fixture;
+
+        scoresMap[fixtureId] = {
           scoreA:
             prediction.predictedScoreA === null ||
             prediction.predictedScoreA === undefined
@@ -126,13 +134,28 @@ function UserMatches({ currentUser }) {
               : String(prediction.predictedScoreB),
         };
 
+        if (prediction.specialChip && prediction.specialChip !== "none") {
+          chipMap[prediction.gameweek] = prediction.specialChip;
+        }
+
         if (prediction.isJoker) {
-          jokerMap[prediction.gameweek] = prediction.fixtureId;
+          if (prediction.specialChip === "double_jokers") {
+            if (!jokerMap[prediction.gameweek]) {
+              jokerMap[prediction.gameweek] = [];
+            }
+
+            if (Array.isArray(jokerMap[prediction.gameweek])) {
+              jokerMap[prediction.gameweek].push(fixtureId);
+            }
+          } else {
+            jokerMap[prediction.gameweek] = fixtureId;
+          }
         }
       });
 
       setScores(scoresMap);
       setJokerByGw(jokerMap);
+      setChipByGw(chipMap);
     } catch (err) {
       alert(err.message || "Failed to load matches");
     } finally {
@@ -151,6 +174,7 @@ function UserMatches({ currentUser }) {
     if (!code) return null;
 
     const logoPath = `../assets/teams/${code}.png`;
+
     return logoModules[logoPath] || null;
   }
 
@@ -182,11 +206,58 @@ function UserMatches({ currentUser }) {
     }));
   }
 
-  function handleSelectJoker(gameweek, fixtureId) {
+  function handleChipChange(gameweek, value) {
+    setChipByGw((prev) => ({
+      ...prev,
+      [gameweek]: value,
+    }));
+
     setJokerByGw((prev) => ({
       ...prev,
-      [gameweek]: fixtureId,
+      [gameweek]: value === "maximum_joker" ? [] : value === "double_jokers" ? [] : "",
     }));
+  }
+
+  function handleSelectJoker(gameweek, fixtureId) {
+    const selectedChip = chipByGw[gameweek] || "none";
+
+    if (selectedChip === "maximum_joker") return;
+
+    setJokerByGw((prev) => {
+      const current = prev[gameweek];
+
+      if (selectedChip === "double_jokers") {
+        const currentArray = Array.isArray(current)
+          ? current
+          : current
+          ? [current]
+          : [];
+
+        if (currentArray.includes(fixtureId)) {
+          return {
+            ...prev,
+            [gameweek]: currentArray.filter((id) => id !== fixtureId),
+          };
+        }
+
+        if (currentArray.length >= 2) {
+          return {
+            ...prev,
+            [gameweek]: [currentArray[1], fixtureId],
+          };
+        }
+
+        return {
+          ...prev,
+          [gameweek]: [...currentArray, fixtureId],
+        };
+      }
+
+      return {
+        ...prev,
+        [gameweek]: fixtureId,
+      };
+    });
   }
 
   const fixturesByGameweek = useMemo(() => {
@@ -198,13 +269,13 @@ function UserMatches({ currentUser }) {
       }
 
       groups[key].push(fixture);
+
       return groups;
     }, {});
   }, [fixtures]);
 
   const roundOptions = useMemo(() => {
     const rounds = Object.keys(fixturesByGameweek);
-
     return gameweekOptions.filter((round) => rounds.includes(round));
   }, [fixturesByGameweek]);
 
@@ -217,6 +288,14 @@ function UserMatches({ currentUser }) {
       (fixture) => fixture.status !== "finished" && !fixture.isLocked
     );
   }, [visibleFixtures]);
+
+  const usedSpecialChip = useMemo(() => {
+    const used = Object.entries(chipByGw).find(
+      ([round, chip]) => chip && chip !== "none" && round !== selectedRound
+    );
+
+    return used ? used[1] : "";
+  }, [chipByGw, selectedRound]);
 
   const allOpenMatchesCompleted = useMemo(() => {
     if (visibleOpenFixtures.length === 0) return false;
@@ -237,12 +316,30 @@ function UserMatches({ currentUser }) {
   const selectedRoundHasJoker = useMemo(() => {
     if (visibleOpenFixtures.length === 0 || !selectedRound) return false;
 
-    const jokerFixtureId = jokerByGw[selectedRound];
+    const selectedChip = chipByGw[selectedRound] || "none";
+    const jokerValue = jokerByGw[selectedRound];
 
-    if (!jokerFixtureId) return false;
+    if (selectedChip === "maximum_joker") return true;
 
-    return visibleOpenFixtures.some((fixture) => fixture.id === jokerFixtureId);
-  }, [visibleOpenFixtures, jokerByGw, selectedRound]);
+    if (selectedChip === "double_jokers") {
+      const jokerArray = Array.isArray(jokerValue)
+        ? jokerValue
+        : jokerValue
+        ? [jokerValue]
+        : [];
+
+      return (
+        jokerArray.length === 2 &&
+        jokerArray.every((id) =>
+          visibleOpenFixtures.some((fixture) => fixture.id === id)
+        )
+      );
+    }
+
+    if (!jokerValue) return false;
+
+    return visibleOpenFixtures.some((fixture) => fixture.id === jokerValue);
+  }, [visibleOpenFixtures, jokerByGw, chipByGw, selectedRound]);
 
   const canSaveAll = allOpenMatchesCompleted && selectedRoundHasJoker;
 
@@ -253,19 +350,36 @@ function UserMatches({ currentUser }) {
     }
 
     if (!canSaveAll) {
-      alert("Complete all unlocked match predictions and choose one joker.");
+      alert("Complete all unlocked match predictions and choose the required joker/chip.");
       return;
     }
 
     try {
+      const selectedChip = chipByGw[selectedRound] || "none";
+
       const predictionsToSave = visibleOpenFixtures.map((fixture) => {
         const score = scores[fixture.id];
+        const jokerValue = jokerByGw[fixture.gameweek];
+
+        let isJoker = false;
+
+        if (selectedChip === "double_jokers") {
+          const jokerArray = Array.isArray(jokerValue)
+            ? jokerValue
+            : jokerValue
+            ? [jokerValue]
+            : [];
+
+          isJoker = jokerArray.includes(fixture.id);
+        } else if (selectedChip !== "maximum_joker") {
+          isJoker = jokerValue === fixture.id;
+        }
 
         return {
           fixtureId: fixture.id,
           predictedScoreA: Number(score.scoreA),
           predictedScoreB: Number(score.scoreB),
-          isJoker: jokerByGw[fixture.gameweek] === fixture.id,
+          isJoker,
         };
       });
 
@@ -273,6 +387,7 @@ function UserMatches({ currentUser }) {
         method: "POST",
         body: JSON.stringify({
           gameweek: selectedRound,
+          specialChip: selectedChip,
           predictions: predictionsToSave,
         }),
       });
@@ -293,7 +408,7 @@ function UserMatches({ currentUser }) {
           <div>
             <p className="admin-kicker">Prediction Mode</p>
             <h1>Matches</h1>
-            <p>Predict unlocked games and choose one 🃏 joker.</p>
+            <p>Predict unlocked games and choose your joker/chip.</p>
           </div>
 
           <button className="admin-black-btn" onClick={() => navigate("/user")}>
@@ -339,6 +454,36 @@ function UserMatches({ currentUser }) {
               </select>
             </div>
 
+            <div className="round-filter-card" style={{ marginTop: "16px" }}>
+              <div>
+                <h3>Prediction Chip</h3>
+                <p>
+                  Choose blank or use your one tournament chip.
+                  {usedSpecialChip && (
+                    <span> You already used a chip in another round.</span>
+                  )}
+                </p>
+              </div>
+
+              <select
+                className="round-filter-select"
+                value={chipByGw[selectedRound] || "none"}
+                onChange={(e) => handleChipChange(selectedRound, e.target.value)}
+                disabled={!selectedRound}
+              >
+                <option value="none">No Chip</option>
+                <option value="triple_joker" disabled={Boolean(usedSpecialChip)}>
+                  Triple Joker Chip — one Joker x3
+                </option>
+                <option value="double_jokers" disabled={Boolean(usedSpecialChip)}>
+                  Double Jokers Chip — 2 Jokers this round
+                </option>
+                <option value="maximum_joker" disabled={Boolean(usedSpecialChip)}>
+                  Maximum Joker Chip — best game becomes Joker
+                </option>
+              </select>
+            </div>
+
             <div className="predict-board">
               <div className="predict-date">{selectedRound || "Round"}</div>
 
@@ -354,8 +499,13 @@ function UserMatches({ currentUser }) {
                 const isLocked =
                   fixture.status === "finished" || fixture.isLocked;
 
+                const selectedChip = chipByGw[fixture.gameweek] || "none";
+                const jokerValue = jokerByGw[fixture.gameweek];
+
                 const isJokerSelected =
-                  jokerByGw[fixture.gameweek] === fixture.id;
+                  selectedChip === "double_jokers"
+                    ? Array.isArray(jokerValue) && jokerValue.includes(fixture.id)
+                    : jokerValue === fixture.id;
 
                 return (
                   <div className="predict-match-row" key={fixture.id}>
@@ -409,17 +559,23 @@ function UserMatches({ currentUser }) {
                         />
                       </div>
 
-                      {!isLocked && selectedRound && (
-                        <button
-                          className={`joker-btn ${
-                            isJokerSelected ? "joker-selected" : ""
-                          }`}
-                          onClick={() =>
-                            handleSelectJoker(fixture.gameweek, fixture.id)
-                          }
-                        >
-                          🃏 {isJokerSelected ? "Joker" : "Joker"}
-                        </button>
+                      {!isLocked &&
+                        selectedRound &&
+                        selectedChip !== "maximum_joker" && (
+                          <button
+                            className={`joker-btn ${
+                              isJokerSelected ? "joker-selected" : ""
+                            }`}
+                            onClick={() =>
+                              handleSelectJoker(fixture.gameweek, fixture.id)
+                            }
+                          >
+                            {isJokerSelected ? "🃏 Joker" : "Joker"}
+                          </button>
+                        )}
+
+                      {!isLocked && selectedChip === "maximum_joker" && (
+                        <div className="final-result-pill">Auto Max Joker</div>
                       )}
 
                       {isLocked && (
@@ -455,8 +611,8 @@ function UserMatches({ currentUser }) {
                 </p>
               ) : !canSaveAll ? (
                 <p className="save-helper-text">
-                  Complete all unlocked games in {selectedRound} and choose one
-                  🃏 joker.
+                  Complete all unlocked games in {selectedRound} and choose the
+                  required joker/chip.
                 </p>
               ) : null}
             </div>

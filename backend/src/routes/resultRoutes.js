@@ -10,12 +10,77 @@ function isValidScore(value) {
   return Number.isInteger(value) && value >= 0 && value <= 20;
 }
 
+function applyChipPoints(prediction, basePoints) {
+  if (prediction.specialChip === "triple_joker" && prediction.isJoker) {
+    return basePoints * 3;
+  }
+
+  if (prediction.specialChip === "double_jokers" && prediction.isJoker) {
+    return basePoints * 2;
+  }
+
+  if (
+    (!prediction.specialChip || prediction.specialChip === "none") &&
+    prediction.isJoker
+  ) {
+    return basePoints * 2;
+  }
+
+  return basePoints;
+}
+
+async function recalculateMaximumJokers(gameweek) {
+  const maxChipPredictions = await Prediction.find({
+    gameweek,
+    specialChip: "maximum_joker",
+    fixtureStatus: "finished",
+  });
+
+  const userIds = [
+    ...new Set(maxChipPredictions.map((prediction) => prediction.user.toString())),
+  ];
+
+  for (const userId of userIds) {
+    const userRoundPredictions = await Prediction.find({
+      user: userId,
+      gameweek,
+      specialChip: "maximum_joker",
+      fixtureStatus: "finished",
+    });
+
+    if (userRoundPredictions.length === 0) continue;
+
+    let bestPrediction = userRoundPredictions[0];
+
+    for (const prediction of userRoundPredictions) {
+      if (Number(prediction.basePoints || 0) > Number(bestPrediction.basePoints || 0)) {
+        bestPrediction = prediction;
+      }
+    }
+
+    for (const prediction of userRoundPredictions) {
+      const isBest =
+        prediction._id.toString() === bestPrediction._id.toString();
+
+      prediction.isAutoMaxJoker = isBest;
+      prediction.isJoker = false;
+      prediction.points = isBest
+        ? Number(prediction.basePoints || 0) * 2
+        : Number(prediction.basePoints || 0);
+
+      await prediction.save();
+    }
+  }
+}
+
 router.patch("/:fixtureId", protect, adminOnly, async (req, res) => {
   const actualScoreA = Number(req.body.actualScoreA);
   const actualScoreB = Number(req.body.actualScoreB);
 
   if (!isValidScore(actualScoreA) || !isValidScore(actualScoreB)) {
-    return res.status(400).json({ message: "Actual scores must be numbers from 0 to 20" });
+    return res.status(400).json({
+      message: "Actual scores must be numbers from 0 to 20",
+    });
   }
 
   const fixture = await Fixture.findById(req.params.fixtureId);
@@ -28,6 +93,7 @@ router.patch("/:fixtureId", protect, adminOnly, async (req, res) => {
   fixture.actualScoreB = actualScoreB;
   fixture.status = "finished";
   fixture.isLocked = true;
+
   await fixture.save();
 
   const predictions = await Prediction.find({ fixture: fixture._id });
@@ -41,12 +107,22 @@ router.patch("/:fixtureId", protect, adminOnly, async (req, res) => {
     );
 
     prediction.basePoints = basePoints;
-    prediction.points = prediction.isJoker ? basePoints * 2 : basePoints;
     prediction.fixtureStatus = "finished";
     prediction.actualScoreA = actualScoreA;
     prediction.actualScoreB = actualScoreB;
+    prediction.isAutoMaxJoker = false;
+
+    if (prediction.specialChip === "maximum_joker") {
+      prediction.isJoker = false;
+      prediction.points = basePoints;
+    } else {
+      prediction.points = applyChipPoints(prediction, basePoints);
+    }
+
     await prediction.save();
   }
+
+  await recalculateMaximumJokers(fixture.gameweek);
 
   return res.json({
     fixture,
@@ -61,9 +137,12 @@ router.delete("/:fixtureId", protect, adminOnly, async (req, res) => {
     return res.status(404).json({ message: "Fixture not found" });
   }
 
+  const gameweek = fixture.gameweek;
+
   fixture.actualScoreA = null;
   fixture.actualScoreB = null;
   fixture.status = "upcoming";
+
   await fixture.save();
 
   await Prediction.updateMany(
@@ -74,8 +153,11 @@ router.delete("/:fixtureId", protect, adminOnly, async (req, res) => {
       fixtureStatus: "upcoming",
       actualScoreA: null,
       actualScoreB: null,
+      isAutoMaxJoker: false,
     }
   );
+
+  await recalculateMaximumJokers(gameweek);
 
   return res.json({ message: "Result reset", fixture });
 });

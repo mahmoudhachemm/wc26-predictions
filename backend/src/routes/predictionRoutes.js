@@ -5,6 +5,13 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+const ALLOWED_CHIPS = [
+  "none",
+  "triple_joker",
+  "double_jokers",
+  "maximum_joker",
+];
+
 function isValidScore(value) {
   return Number.isInteger(value) && value >= 0 && value <= 20;
 }
@@ -60,7 +67,7 @@ router.get("/public", protect, async (req, res) => {
 });
 
 router.post("/save-round", protect, async (req, res) => {
-  const { gameweek, predictions } = req.body;
+  const { gameweek, predictions, specialChip = "none" } = req.body;
 
   if (!gameweek) {
     return res.status(400).json({ message: "Round is required" });
@@ -68,6 +75,10 @@ router.post("/save-round", protect, async (req, res) => {
 
   if (!Array.isArray(predictions)) {
     return res.status(400).json({ message: "Predictions array is required" });
+  }
+
+  if (!ALLOWED_CHIPS.includes(specialChip)) {
+    return res.status(400).json({ message: "Invalid chip selected" });
   }
 
   const openFixtures = await Fixture.find({
@@ -127,10 +138,39 @@ router.post("/save-round", protect, async (req, res) => {
     }
   }
 
-  if (jokerCount !== 1) {
-    return res.status(400).json({
-      message: "Choose exactly one joker for this round",
+  if (specialChip === "double_jokers") {
+    if (jokerCount !== 2) {
+      return res.status(400).json({
+        message: "Double Jokers chip requires exactly 2 jokers in this round",
+      });
+    }
+  } else if (specialChip === "maximum_joker") {
+    if (jokerCount !== 0) {
+      return res.status(400).json({
+        message:
+          "Maximum Joker chip chooses the best game automatically, do not select a joker",
+      });
+    }
+  } else {
+    if (jokerCount !== 1) {
+      return res.status(400).json({
+        message: "Choose exactly one joker for this round",
+      });
+    }
+  }
+
+  if (specialChip !== "none") {
+    const usedAnyChipInAnotherRound = await Prediction.findOne({
+      user: req.user._id,
+      specialChip: { $ne: "none" },
+      gameweek: { $ne: gameweek },
     });
+
+    if (usedAnyChipInAnotherRound) {
+      return res.status(400).json({
+        message: "You can use only one special chip in the whole tournament",
+      });
+    }
   }
 
   const savedPredictions = [];
@@ -152,6 +192,8 @@ router.post("/save-round", protect, async (req, res) => {
         predictedScoreA: Number(prediction.predictedScoreA),
         predictedScoreB: Number(prediction.predictedScoreB),
         isJoker: Boolean(prediction.isJoker),
+        specialChip,
+        isAutoMaxJoker: false,
         fixtureStatus: fixture.status,
         actualScoreA: fixture.actualScoreA,
         actualScoreB: fixture.actualScoreB,

@@ -36,14 +36,26 @@ const predictionSchema = new mongoose.Schema(
       min: 0,
       max: 20,
     },
-    isJoker: {
-      type: Boolean,
-      default: false,
-    },
-    basePoints: {
-      type: Number,
-      default: 0,
-    },
+   isJoker: {
+  type: Boolean,
+  default: false,
+},
+
+specialChip: {
+  type: String,
+  enum: ["none", "triple_joker", "double_jokers", "maximum_joker"],
+  default: "none",
+},
+
+isAutoMaxJoker: {
+  type: Boolean,
+  default: false,
+},
+
+basePoints: {
+  type: Number,
+  default: 0,
+},
     points: {
       type: Number,
       default: 0,
