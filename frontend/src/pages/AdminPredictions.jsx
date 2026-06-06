@@ -75,6 +75,14 @@ function AdminPredictions() {
       setFixtures(fixturesData || []);
       setPredictions(predictionsData || []);
 
+      console.log("PREDICTIONS FROM API:", predictionsData);
+console.log(
+  "USERS IN PREDICTIONS:",
+  [...new Set((predictionsData || []).map((p) => {
+    return p.userName || p.user?.fullName || p.user || p.userId;
+  }))]
+);
+
       if (
         (fixturesData || []).some(
           (fixture) => fixture.gameweek === savedCurrentRound
