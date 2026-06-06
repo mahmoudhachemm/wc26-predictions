@@ -473,13 +473,13 @@ function UserMatches({ currentUser }) {
               >
                 <option value="none">No Chip</option>
                 <option value="triple_joker" disabled={Boolean(usedSpecialChip)}>
-                  Triple Joker Chip — one Joker x3
+                  Triple Joker
                 </option>
                 <option value="double_jokers" disabled={Boolean(usedSpecialChip)}>
-                  Double Jokers Chip — 2 Jokers this round
+                  Double Joker
                 </option>
                 <option value="maximum_joker" disabled={Boolean(usedSpecialChip)}>
-                  Maximum Joker Chip — best game becomes Joker
+                  Maximum Joker
                 </option>
               </select>
             </div>
