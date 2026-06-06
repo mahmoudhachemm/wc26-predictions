@@ -9,98 +9,135 @@ function AdminPredictions() {
 
   const [predictions, setPredictions] = useState([]);
   const [fixtures, setFixtures] = useState([]);
+  const [allPredictionsForUsers, setAllPredictionsForUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedRound, setSelectedRound] = useState("");
   const [selectedFixture, setSelectedFixture] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
 
-  function normalizeId(value) {
+  function getId(value) {
     if (!value) return "";
-
     if (typeof value === "string") return value;
-
     if (value._id) return String(value._id);
     if (value.id) return String(value.id);
-
     return String(value);
   }
 
   function getFixtureId(fixture) {
-    return normalizeId(fixture?._id || fixture?.id);
+    return getId(fixture?._id || fixture?.id);
   }
 
   function getPredictionId(prediction) {
-    return normalizeId(prediction?._id || prediction?.id);
+    return getId(prediction?._id || prediction?.id);
   }
 
   function getPredictionFixtureId(prediction) {
-    return normalizeId(
-      prediction?.fixtureId ||
-        prediction?.fixture?._id ||
-        prediction?.fixture?.id ||
-        prediction?.fixture
-    );
+    return getId(prediction?.fixtureId || prediction?.fixture);
   }
 
   function getPredictionUserId(prediction) {
-    return normalizeId(
-      prediction?.userId ||
-        prediction?.user?._id ||
-        prediction?.user?.id ||
-        prediction?.user
-    );
+    return getId(prediction?.userId || prediction?.user);
   }
 
   function getPredictionUserName(prediction) {
     return (
       prediction?.userName ||
       prediction?.user?.fullName ||
-      prediction?.user?.name ||
       prediction?.user?.email ||
       "Unknown User"
     );
   }
 
-  function getUserFilterKey(prediction) {
-    const id = getPredictionUserId(prediction);
-    const name = getPredictionUserName(prediction);
-
-    return (id || name).toString().trim().toLowerCase();
-  }
-
   function getFixture(fixtureId) {
-    const cleanId = normalizeId(fixtureId);
-
-    return fixtures.find((fixture) => getFixtureId(fixture) === cleanId);
+    const id = getId(fixtureId);
+    return fixtures.find((fixture) => getFixtureId(fixture) === id);
   }
 
-  async function loadData() {
+  function buildQuery({ round, fixtureId, userId }) {
+    const params = new URLSearchParams();
+
+    if (round) params.set("round", round);
+    if (fixtureId) params.set("fixtureId", fixtureId);
+    if (userId) params.set("userId", userId);
+
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }
+
+  async function loadData(roundValue, fixtureValue, userValue) {
     try {
       setLoading(true);
 
-      const [fixturesData, predictionsData, savedCurrentRound] =
+      const [fixturesData, filteredPredictionsData, userListPredictionsData] =
         await Promise.all([
           apiRequest("/fixtures"),
-          apiRequest("/predictions/all"),
-          getCurrentRound(),
+          apiRequest(
+            `/predictions/all${buildQuery({
+              round: roundValue,
+              fixtureId: fixtureValue,
+              userId: userValue,
+            })}`
+          ),
+          apiRequest(
+            `/predictions/all${buildQuery({
+              round: roundValue,
+              fixtureId: fixtureValue,
+              userId: "",
+            })}`
+          ),
         ]);
 
       setFixtures(fixturesData || []);
-      setPredictions(predictionsData || []);
+      setPredictions(filteredPredictionsData || []);
+      setAllPredictionsForUsers(userListPredictionsData || []);
+    } catch (err) {
+      alert(err.message || "Failed to load predictions");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-      if (
-        (fixturesData || []).some(
-          (fixture) => fixture.gameweek === savedCurrentRound
-        )
-      ) {
-        setSelectedRound(savedCurrentRound);
-      } else {
-        setSelectedRound("");
-      }
+  async function loadInitialData() {
+    try {
+      setLoading(true);
 
+      const [fixturesData, savedCurrentRound] = await Promise.all([
+        apiRequest("/fixtures"),
+        getCurrentRound(),
+      ]);
+
+      const hasCurrentRound = (fixturesData || []).some(
+        (fixture) => fixture.gameweek === savedCurrentRound
+      );
+
+      const startRound = hasCurrentRound ? savedCurrentRound : "";
+
+      setFixtures(fixturesData || []);
+      setSelectedRound(startRound);
       setSelectedFixture("");
       setSelectedUser("");
+
+      const [filteredPredictionsData, userListPredictionsData] =
+        await Promise.all([
+          apiRequest(
+            `/predictions/all${buildQuery({
+              round: startRound,
+              fixtureId: "",
+              userId: "",
+            })}`
+          ),
+          apiRequest(
+            `/predictions/all${buildQuery({
+              round: startRound,
+              fixtureId: "",
+              userId: "",
+            })}`
+          ),
+        ]);
+
+      setPredictions(filteredPredictionsData || []);
+      setAllPredictionsForUsers(userListPredictionsData || []);
     } catch (err) {
       alert(err.message || "Failed to load predictions");
     } finally {
@@ -109,8 +146,12 @@ function AdminPredictions() {
   }
 
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, []);
+
+  useEffect(() => {
+    loadData(selectedRound, selectedFixture, selectedUser);
+  }, [selectedRound, selectedFixture, selectedUser]);
 
   const roundOptions = useMemo(() => {
     const rounds = fixtures.map((fixture) => fixture.gameweek).filter(Boolean);
@@ -124,52 +165,23 @@ function AdminPredictions() {
     });
   }, [fixtures, selectedRound]);
 
-  const filteredPredictionsWithoutUser = useMemo(() => {
-    return predictions.filter((prediction) => {
-      const predictionFixtureId = getPredictionFixtureId(prediction);
-      const fixture = getFixture(predictionFixtureId);
-
-      if (selectedRound && fixture?.gameweek !== selectedRound) {
-        return false;
-      }
-
-      if (selectedFixture && predictionFixtureId !== selectedFixture) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [predictions, fixtures, selectedRound, selectedFixture]);
-
   const userOptions = useMemo(() => {
     const usersMap = new Map();
 
-    filteredPredictionsWithoutUser.forEach((prediction) => {
-      const key = getUserFilterKey(prediction);
-      const name = getPredictionUserName(prediction);
+    allPredictionsForUsers.forEach((prediction) => {
+      const userId = getPredictionUserId(prediction);
+      const userName = getPredictionUserName(prediction);
 
-      if (key) {
-        usersMap.set(key, {
-          id: key,
-          name,
+      if (userId) {
+        usersMap.set(userId, {
+          id: userId,
+          name: userName,
         });
       }
     });
 
-    return [...usersMap.values()].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [filteredPredictionsWithoutUser]);
-
-  const filteredPredictions = useMemo(() => {
-    return filteredPredictionsWithoutUser.filter((prediction) => {
-      if (selectedUser && getUserFilterKey(prediction) !== selectedUser) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [filteredPredictionsWithoutUser, selectedUser]);
+    return [...usersMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [allPredictionsForUsers]);
 
   async function handleDeletePrediction(predictionId) {
     const confirmed = window.confirm("Delete this prediction?");
@@ -180,11 +192,7 @@ function AdminPredictions() {
         method: "DELETE",
       });
 
-      setPredictions((prevPredictions) =>
-        prevPredictions.filter(
-          (prediction) => getPredictionId(prediction) !== predictionId
-        )
-      );
+      await loadData(selectedRound, selectedFixture, selectedUser);
     } catch (err) {
       alert(err.message || "Failed to delete prediction");
     }
@@ -292,7 +300,7 @@ function AdminPredictions() {
             <div className="empty-state">
               <h3>Loading predictions...</h3>
             </div>
-          ) : filteredPredictions.length === 0 ? (
+          ) : predictions.length === 0 ? (
             <div className="empty-state">
               <h3>No predictions</h3>
               <p>No predictions match the selected filters.</p>
@@ -310,7 +318,7 @@ function AdminPredictions() {
                 <span></span>
               </div>
 
-              {filteredPredictions.map((prediction) => {
+              {predictions.map((prediction) => {
                 const predictionId = getPredictionId(prediction);
                 const fixture = getFixture(getPredictionFixtureId(prediction));
 
@@ -344,14 +352,10 @@ function AdminPredictions() {
 
                     <span
                       className={`fixture-status ${
-                        fixture?.isLocked
-                          ? "locked"
-                          : fixture?.status || "upcoming"
+                        fixture?.isLocked ? "locked" : fixture?.status || "upcoming"
                       }`}
                     >
-                      {fixture?.isLocked
-                        ? "locked"
-                        : fixture?.status || "upcoming"}
+                      {fixture?.isLocked ? "locked" : fixture?.status || "upcoming"}
                     </span>
 
                     <button

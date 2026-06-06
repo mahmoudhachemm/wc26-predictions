@@ -18,11 +18,13 @@ router.get("/mine", protect, async (req, res) => {
 });
 
 router.get("/all", protect, adminOnly, async (req, res) => {
-  const { round, fixtureId } = req.query;
+  const { round, fixtureId, userId } = req.query;
+
   const filter = {};
 
   if (round) filter.gameweek = round;
   if (fixtureId) filter.fixture = fixtureId;
+  if (userId) filter.user = userId;
 
   const predictions = await Prediction.find(filter)
     .populate("user", "fullName email role")
@@ -32,7 +34,7 @@ router.get("/all", protect, adminOnly, async (req, res) => {
 });
 
 router.get("/public", protect, async (req, res) => {
-  const { round, fixtureId } = req.query;
+  const { round, fixtureId, userId } = req.query;
 
   const fixturesFilter = {
     $or: [{ isLocked: true }, { status: "finished" }],
@@ -44,9 +46,13 @@ router.get("/public", protect, async (req, res) => {
   const visibleFixtures = await Fixture.find(fixturesFilter).select("_id");
   const visibleFixtureIds = visibleFixtures.map((fixture) => fixture._id);
 
-  const predictions = await Prediction.find({
+  const predictionFilter = {
     fixture: { $in: visibleFixtureIds },
-  })
+  };
+
+  if (userId) predictionFilter.user = userId;
+
+  const predictions = await Prediction.find(predictionFilter)
     .populate("user", "fullName email role")
     .sort({ gameweek: 1, createdAt: 1 });
 
