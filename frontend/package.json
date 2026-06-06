@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:backend": "vite build && if exist ..\\backend\\dist rmdir /s /q ..\\backend\\dist && xcopy dist ..\\backend\\dist /E /I /Y",
     "lint": "eslint .",
     "preview": "vite preview"
   },
