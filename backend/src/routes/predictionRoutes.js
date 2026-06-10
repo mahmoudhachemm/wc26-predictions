@@ -16,12 +16,42 @@ function isValidScore(value) {
   return Number.isInteger(value) && value >= 0 && value <= 20;
 }
 
+function getFixtureId(prediction) {
+  return prediction.fixture?._id?.toString() || prediction.fixture?.toString();
+}
+
+function sortPredictionsByFixtureOrder(predictions, fixtures) {
+  const fixtureOrderMap = {};
+
+  fixtures.forEach((fixture, index) => {
+    fixtureOrderMap[fixture._id.toString()] = index;
+  });
+
+  return predictions.sort((a, b) => {
+    const fixtureA = getFixtureId(a);
+    const fixtureB = getFixtureId(b);
+
+    return (
+      (fixtureOrderMap[fixtureA] ?? 999999) -
+      (fixtureOrderMap[fixtureB] ?? 999999)
+    );
+  });
+}
+
 router.get("/mine", protect, async (req, res) => {
   const predictions = await Prediction.find({ user: req.user._id })
     .populate("user", "fullName email role")
-    .sort({ createdAt: 1 });
+    .populate("fixture")
+    .lean();
 
-  return res.json(predictions);
+  const fixtures = await Fixture.find({}).sort({ createdAt: 1 }).lean();
+
+  const orderedPredictions = sortPredictionsByFixtureOrder(
+    predictions,
+    fixtures
+  );
+
+  return res.json(orderedPredictions);
 });
 
 router.get("/all", protect, adminOnly, async (req, res) => {
@@ -35,9 +65,23 @@ router.get("/all", protect, adminOnly, async (req, res) => {
 
   const predictions = await Prediction.find(filter)
     .populate("user", "fullName email role")
-    .sort({ gameweek: 1, createdAt: 1 });
+    .populate("fixture")
+    .lean();
 
-  return res.json(predictions);
+  const fixtureFilter = {};
+  if (round) fixtureFilter.gameweek = round;
+  if (fixtureId) fixtureFilter._id = fixtureId;
+
+  const fixtures = await Fixture.find(fixtureFilter)
+    .sort({ createdAt: 1 })
+    .lean();
+
+  const orderedPredictions = sortPredictionsByFixtureOrder(
+    predictions,
+    fixtures
+  );
+
+  return res.json(orderedPredictions);
 });
 
 router.get("/public", protect, async (req, res) => {
@@ -50,7 +94,10 @@ router.get("/public", protect, async (req, res) => {
   if (round) fixturesFilter.gameweek = round;
   if (fixtureId) fixturesFilter._id = fixtureId;
 
-  const visibleFixtures = await Fixture.find(fixturesFilter).select("_id");
+  const visibleFixtures = await Fixture.find(fixturesFilter)
+    .sort({ createdAt: 1 })
+    .lean();
+
   const visibleFixtureIds = visibleFixtures.map((fixture) => fixture._id);
 
   const predictionFilter = {
@@ -61,9 +108,15 @@ router.get("/public", protect, async (req, res) => {
 
   const predictions = await Prediction.find(predictionFilter)
     .populate("user", "fullName email role")
-    .sort({ gameweek: 1, createdAt: 1 });
+    .populate("fixture")
+    .lean();
 
-  return res.json(predictions);
+  const orderedPredictions = sortPredictionsByFixtureOrder(
+    predictions,
+    visibleFixtures
+  );
+
+  return res.json(orderedPredictions);
 });
 
 router.post("/save-round", protect, async (req, res) => {
@@ -88,7 +141,9 @@ router.post("/save-round", protect, async (req, res) => {
   }).sort({ createdAt: 1 });
 
   if (openFixtures.length === 0) {
-    return res.status(400).json({ message: "No unlocked matches in this round" });
+    return res
+      .status(400)
+      .json({ message: "No unlocked matches in this round" });
   }
 
   if (predictions.length !== openFixtures.length) {
@@ -211,9 +266,15 @@ router.post("/save-round", protect, async (req, res) => {
     gameweek,
   })
     .populate("user", "fullName email role")
-    .sort({ createdAt: 1 });
+    .populate("fixture")
+    .lean();
 
-  return res.json(savedPredictions);
+  const orderedSavedPredictions = sortPredictionsByFixtureOrder(
+    savedPredictions,
+    openFixtures
+  );
+
+  return res.json(orderedSavedPredictions);
 });
 
 router.delete("/:id", protect, adminOnly, async (req, res) => {
