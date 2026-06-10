@@ -6095,3 +6095,45 @@ body,
     font-size: 16px !important;
   }
 }
+.save-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.save-popup-box {
+  min-width: 260px;
+  max-width: 85%;
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: rgba(10, 25, 18, 0.92);
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  color: #86efac;
+  font-weight: 900;
+  text-align: center;
+  font-size: 16px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  animation: savePopupIn 0.18s ease-out;
+}
+
+.save-popup-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+@keyframes savePopupIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

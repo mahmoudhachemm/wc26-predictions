@@ -76,6 +76,10 @@ function UserMatches({ currentUser }) {
   const [selectedRound, setSelectedRound] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [savedRounds, setSavedRounds] = useState({});
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
   function getDefaultRound(fixturesData) {
     const roundsInFixtures = [
       ...new Set(fixturesData.map((fixture) => fixture.gameweek).filter(Boolean)),
@@ -113,6 +117,7 @@ function UserMatches({ currentUser }) {
       const scoresMap = {};
       const jokerMap = {};
       const chipMap = {};
+      const savedRoundsMap = {};
 
       myPredictions.forEach((prediction) => {
         const fixtureId =
@@ -120,6 +125,10 @@ function UserMatches({ currentUser }) {
           prediction.fixture?._id ||
           prediction.fixture?.id ||
           prediction.fixture;
+
+        if (prediction.gameweek) {
+          savedRoundsMap[prediction.gameweek] = true;
+        }
 
         scoresMap[fixtureId] = {
           scoreA:
@@ -156,6 +165,7 @@ function UserMatches({ currentUser }) {
       setScores(scoresMap);
       setJokerByGw(jokerMap);
       setChipByGw(chipMap);
+      setSavedRounds(savedRoundsMap);
     } catch (err) {
       alert(err.message || "Failed to load matches");
     } finally {
@@ -214,7 +224,8 @@ function UserMatches({ currentUser }) {
 
     setJokerByGw((prev) => ({
       ...prev,
-      [gameweek]: value === "maximum_joker" ? [] : value === "double_jokers" ? [] : "",
+      [gameweek]:
+        value === "maximum_joker" ? [] : value === "double_jokers" ? [] : "",
     }));
   }
 
@@ -355,6 +366,8 @@ function UserMatches({ currentUser }) {
     }
 
     try {
+      setSaving(true);
+
       const selectedChip = chipByGw[selectedRound] || "none";
 
       const predictionsToSave = visibleOpenFixtures.map((fixture) => {
@@ -392,16 +405,35 @@ function UserMatches({ currentUser }) {
         }),
       });
 
-      alert("Predictions saved successfully.");
-      loadData();
+      setSavedRounds((prev) => ({
+        ...prev,
+        [selectedRound]: true,
+      }));
+
+      setSaveMessage("Predictions saved successfully");
+
+      setTimeout(() => {
+        setSaveMessage("");
+      }, 1300);
     } catch (err) {
       alert(err.message || "Failed to save predictions");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="predict-page" style={{ backgroundImage: `url(${bg})` }}>
       <div className="predict-overlay"></div>
+
+      {saveMessage && (
+        <div className="save-popup-overlay">
+          <div className="save-popup-box">
+            <div className="save-popup-icon">✅</div>
+            <div>{saveMessage}</div>
+          </div>
+        </div>
+      )}
 
       <div className="predict-content">
         <div className="predict-header">
@@ -599,10 +631,14 @@ function UserMatches({ currentUser }) {
             <div className="save-all-wrap">
               <button
                 className="save-all-btn"
-                disabled={!selectedRound || !canSaveAll}
+                disabled={!selectedRound || !canSaveAll || saving}
                 onClick={handleSaveAllPredictions}
               >
-                Save Predictions
+                {saving
+                  ? "Saving..."
+                  : savedRounds[selectedRound]
+                  ? "Edit Predictions"
+                  : "Save Predictions"}
               </button>
 
               {!selectedRound ? (
@@ -619,6 +655,53 @@ function UserMatches({ currentUser }) {
           </>
         )}
       </div>
+
+      <style>
+        {`
+          .save-popup-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+          }
+
+          .save-popup-box {
+            min-width: 260px;
+            max-width: 85%;
+            padding: 22px 24px;
+            border-radius: 22px;
+            background: rgba(10, 25, 18, 0.92);
+            border: 1px solid rgba(34, 197, 94, 0.55);
+            color: #86efac;
+            font-weight: 900;
+            text-align: center;
+            font-size: 16px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(14px);
+            animation: savePopupIn 0.18s ease-out;
+          }
+
+          .save-popup-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+          }
+
+          @keyframes savePopupIn {
+            from {
+              opacity: 0;
+              transform: scale(0.88) translateY(8px);
+            }
+
+            to {
+              opacity: 1;
+              transform: scale(1) translateY(0);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }
