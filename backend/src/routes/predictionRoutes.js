@@ -173,36 +173,45 @@ router.post("/save-round", protect, async (req, res) => {
     }
   }
 
-  const savedPredictions = [];
-
-  for (const prediction of predictions) {
+  const operations = predictions.map((prediction) => {
     const fixture = fixtureMap.get(prediction.fixtureId);
 
-    const savedPrediction = await Prediction.findOneAndUpdate(
-      {
-        user: req.user._id,
-        fixture: fixture._id,
+    return {
+      updateOne: {
+        filter: {
+          user: req.user._id,
+          fixture: fixture._id,
+        },
+        update: {
+          $set: {
+            user: req.user._id,
+            fixture: fixture._id,
+            gameweek: fixture.gameweek,
+            teamA: fixture.teamA,
+            teamB: fixture.teamB,
+            predictedScoreA: Number(prediction.predictedScoreA),
+            predictedScoreB: Number(prediction.predictedScoreB),
+            isJoker: Boolean(prediction.isJoker),
+            specialChip,
+            isAutoMaxJoker: false,
+            fixtureStatus: fixture.status,
+            actualScoreA: fixture.actualScoreA,
+            actualScoreB: fixture.actualScoreB,
+          },
+        },
+        upsert: true,
       },
-      {
-        user: req.user._id,
-        fixture: fixture._id,
-        gameweek: fixture.gameweek,
-        teamA: fixture.teamA,
-        teamB: fixture.teamB,
-        predictedScoreA: Number(prediction.predictedScoreA),
-        predictedScoreB: Number(prediction.predictedScoreB),
-        isJoker: Boolean(prediction.isJoker),
-        specialChip,
-        isAutoMaxJoker: false,
-        fixtureStatus: fixture.status,
-        actualScoreA: fixture.actualScoreA,
-        actualScoreB: fixture.actualScoreB,
-      },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    ).populate("user", "fullName email role");
+    };
+  });
 
-    savedPredictions.push(savedPrediction);
-  }
+  await Prediction.bulkWrite(operations);
+
+  const savedPredictions = await Prediction.find({
+    user: req.user._id,
+    gameweek,
+  })
+    .populate("user", "fullName email role")
+    .sort({ createdAt: 1 });
 
   return res.json(savedPredictions);
 });

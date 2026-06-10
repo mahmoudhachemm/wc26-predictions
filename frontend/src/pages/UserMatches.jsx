@@ -184,7 +184,6 @@ function UserMatches({ currentUser }) {
     if (!code) return null;
 
     const logoPath = `../assets/teams/${code}.png`;
-
     return logoModules[logoPath] || null;
   }
 
@@ -280,7 +279,6 @@ function UserMatches({ currentUser }) {
       }
 
       groups[key].push(fixture);
-
       return groups;
     }, {});
   }, [fixtures]);
@@ -426,14 +424,7 @@ function UserMatches({ currentUser }) {
     <div className="predict-page" style={{ backgroundImage: `url(${bg})` }}>
       <div className="predict-overlay"></div>
 
-      {saveMessage && (
-        <div className="save-popup-overlay">
-          <div className="save-popup-box">
-            <div className="save-popup-icon">✅</div>
-            <div>{saveMessage}</div>
-          </div>
-        </div>
-      )}
+      {saveMessage && <div className="success-popup">✅ {saveMessage}</div>}
 
       <div className="predict-content">
         <div className="predict-header">
@@ -564,11 +555,7 @@ function UserMatches({ currentUser }) {
                           value={currentScore.scoreA}
                           disabled={isLocked}
                           onChange={(e) =>
-                            handleScoreChange(
-                              fixture.id,
-                              "scoreA",
-                              e.target.value
-                            )
+                            handleScoreChange(fixture.id, "scoreA", e.target.value)
                           }
                         />
 
@@ -582,11 +569,7 @@ function UserMatches({ currentUser }) {
                           value={currentScore.scoreB}
                           disabled={isLocked}
                           onChange={(e) =>
-                            handleScoreChange(
-                              fixture.id,
-                              "scoreB",
-                              e.target.value
-                            )
+                            handleScoreChange(fixture.id, "scoreB", e.target.value)
                           }
                         />
                       </div>
@@ -602,7 +585,7 @@ function UserMatches({ currentUser }) {
                               handleSelectJoker(fixture.gameweek, fixture.id)
                             }
                           >
-                            {isJokerSelected ? "🃏 Joker" : "Joker"}
+                            {isJokerSelected ? " Joker" : "Joker"}
                           </button>
                         )}
 
@@ -655,53 +638,6 @@ function UserMatches({ currentUser }) {
           </>
         )}
       </div>
-
-      <style>
-        {`
-          .save-popup-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-          }
-
-          .save-popup-box {
-            min-width: 260px;
-            max-width: 85%;
-            padding: 22px 24px;
-            border-radius: 22px;
-            background: rgba(10, 25, 18, 0.92);
-            border: 1px solid rgba(34, 197, 94, 0.55);
-            color: #86efac;
-            font-weight: 900;
-            text-align: center;
-            font-size: 16px;
-            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(14px);
-            animation: savePopupIn 0.18s ease-out;
-          }
-
-          .save-popup-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-          }
-
-          @keyframes savePopupIn {
-            from {
-              opacity: 0;
-              transform: scale(0.88) translateY(8px);
-            }
-
-            to {
-              opacity: 1;
-              transform: scale(1) translateY(0);
-            }
-          }
-        `}
-      </style>
     </div>
   );
 }
