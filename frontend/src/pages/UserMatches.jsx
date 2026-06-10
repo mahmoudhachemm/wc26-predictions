@@ -264,9 +264,9 @@ function UserMatches({ currentUser }) {
       }
 
       return {
-        ...prev,
-        [gameweek]: fixtureId,
-      };
+  ...prev,
+  [gameweek]: current === fixtureId ? "" : fixtureId,
+};
     });
   }
 
@@ -613,16 +613,18 @@ function UserMatches({ currentUser }) {
 
             <div className="save-all-wrap">
               <button
-                className="save-all-btn"
-                disabled={!selectedRound || !canSaveAll || saving}
-                onClick={handleSaveAllPredictions}
-              >
-                {saving
-                  ? "Saving..."
-                  : savedRounds[selectedRound]
-                  ? "Edit Predictions"
-                  : "Save Predictions"}
-              </button>
+  className={`save-all-btn ${
+    savedRounds[selectedRound] ? "edit-predictions-btn" : "save-predictions-btn"
+  }`}
+  disabled={!selectedRound || !canSaveAll || saving}
+  onClick={handleSaveAllPredictions}
+>
+  {saving
+    ? "Saving..."
+    : savedRounds[selectedRound]
+    ? "Edit Predictions"
+    : "Save Predictions"}
+</button>
 
               {!selectedRound ? (
                 <p className="save-helper-text">
