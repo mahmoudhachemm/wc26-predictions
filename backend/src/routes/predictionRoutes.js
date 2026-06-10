@@ -16,8 +16,35 @@ function isValidScore(value) {
   return Number.isInteger(value) && value >= 0 && value <= 20;
 }
 
-function getFixtureId(prediction) {
-  return prediction.fixture?._id?.toString() || prediction.fixture?.toString();
+function normalizePrediction(prediction) {
+  const item = prediction.toObject ? prediction.toObject() : prediction;
+
+  const userObject = item.user;
+  const fixtureObject = item.fixture;
+
+  return {
+    ...item,
+    id: item._id?.toString() || item.id,
+    userId: userObject?._id
+      ? userObject._id.toString()
+      : userObject
+      ? userObject.toString()
+      : item.userId,
+    userName: userObject?.fullName || item.userName,
+    fixtureId: fixtureObject?._id
+      ? fixtureObject._id.toString()
+      : fixtureObject
+      ? fixtureObject.toString()
+      : item.fixtureId,
+  };
+}
+
+function getPredictionFixtureId(prediction) {
+  return (
+    prediction.fixtureId ||
+    prediction.fixture?._id?.toString() ||
+    prediction.fixture?.toString()
+  );
 }
 
 function sortPredictionsByFixtureOrder(predictions, fixtures) {
@@ -28,8 +55,8 @@ function sortPredictionsByFixtureOrder(predictions, fixtures) {
   });
 
   return predictions.sort((a, b) => {
-    const fixtureA = getFixtureId(a);
-    const fixtureB = getFixtureId(b);
+    const fixtureA = getPredictionFixtureId(a);
+    const fixtureB = getPredictionFixtureId(b);
 
     return (
       (fixtureOrderMap[fixtureA] ?? 999999) -
@@ -41,13 +68,14 @@ function sortPredictionsByFixtureOrder(predictions, fixtures) {
 router.get("/mine", protect, async (req, res) => {
   const predictions = await Prediction.find({ user: req.user._id })
     .populate("user", "fullName email role")
-    .populate("fixture")
-    .lean();
+    .populate("fixture");
 
-  const fixtures = await Fixture.find({}).sort({ createdAt: 1 }).lean();
+  const fixtures = await Fixture.find({}).sort({ createdAt: 1 });
+
+  const normalizedPredictions = predictions.map(normalizePrediction);
 
   const orderedPredictions = sortPredictionsByFixtureOrder(
-    predictions,
+    normalizedPredictions,
     fixtures
   );
 
@@ -65,19 +93,18 @@ router.get("/all", protect, adminOnly, async (req, res) => {
 
   const predictions = await Prediction.find(filter)
     .populate("user", "fullName email role")
-    .populate("fixture")
-    .lean();
+    .populate("fixture");
 
   const fixtureFilter = {};
   if (round) fixtureFilter.gameweek = round;
   if (fixtureId) fixtureFilter._id = fixtureId;
 
-  const fixtures = await Fixture.find(fixtureFilter)
-    .sort({ createdAt: 1 })
-    .lean();
+  const fixtures = await Fixture.find(fixtureFilter).sort({ createdAt: 1 });
+
+  const normalizedPredictions = predictions.map(normalizePrediction);
 
   const orderedPredictions = sortPredictionsByFixtureOrder(
-    predictions,
+    normalizedPredictions,
     fixtures
   );
 
@@ -94,9 +121,9 @@ router.get("/public", protect, async (req, res) => {
   if (round) fixturesFilter.gameweek = round;
   if (fixtureId) fixturesFilter._id = fixtureId;
 
-  const visibleFixtures = await Fixture.find(fixturesFilter)
-    .sort({ createdAt: 1 })
-    .lean();
+  const visibleFixtures = await Fixture.find(fixturesFilter).sort({
+    createdAt: 1,
+  });
 
   const visibleFixtureIds = visibleFixtures.map((fixture) => fixture._id);
 
@@ -108,11 +135,12 @@ router.get("/public", protect, async (req, res) => {
 
   const predictions = await Prediction.find(predictionFilter)
     .populate("user", "fullName email role")
-    .populate("fixture")
-    .lean();
+    .populate("fixture");
+
+  const normalizedPredictions = predictions.map(normalizePrediction);
 
   const orderedPredictions = sortPredictionsByFixtureOrder(
-    predictions,
+    normalizedPredictions,
     visibleFixtures
   );
 
@@ -141,9 +169,9 @@ router.post("/save-round", protect, async (req, res) => {
   }).sort({ createdAt: 1 });
 
   if (openFixtures.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "No unlocked matches in this round" });
+    return res.status(400).json({
+      message: "No unlocked matches in this round",
+    });
   }
 
   if (predictions.length !== openFixtures.length) {
@@ -266,11 +294,12 @@ router.post("/save-round", protect, async (req, res) => {
     gameweek,
   })
     .populate("user", "fullName email role")
-    .populate("fixture")
-    .lean();
+    .populate("fixture");
+
+  const normalizedSavedPredictions = savedPredictions.map(normalizePrediction);
 
   const orderedSavedPredictions = sortPredictionsByFixtureOrder(
-    savedPredictions,
+    normalizedSavedPredictions,
     openFixtures
   );
 
