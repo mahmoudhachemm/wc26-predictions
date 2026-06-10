@@ -76,6 +76,24 @@ function UserMatches({ currentUser }) {
   const [selectedRound, setSelectedRound] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // NEW
+  const [savedRounds, setSavedRounds] = useState({});
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function getFixtureId(fixture) {
+    return fixture.id || fixture._id;
+  }
+
+  function getPredictionFixtureId(prediction) {
+    return (
+      prediction.fixtureId ||
+      prediction.fixture?._id ||
+      prediction.fixture?.id ||
+      prediction.fixture
+    );
+  }
+
   function getDefaultRound(fixturesData) {
     const roundsInFixtures = [
       ...new Set(fixturesData.map((fixture) => fixture.gameweek).filter(Boolean)),
@@ -114,12 +132,18 @@ function UserMatches({ currentUser }) {
       const jokerMap = {};
       const chipMap = {};
 
+      // NEW
+      const savedRoundsMap = {};
+
       myPredictions.forEach((prediction) => {
-        const fixtureId =
-          prediction.fixtureId ||
-          prediction.fixture?._id ||
-          prediction.fixture?.id ||
-          prediction.fixture;
+        const fixtureId = getPredictionFixtureId(prediction);
+
+        if (!fixtureId) return;
+
+        // NEW: if this user has any prediction in this round, button becomes Edit
+        if (prediction.gameweek) {
+          savedRoundsMap[prediction.gameweek] = true;
+        }
 
         scoresMap[fixtureId] = {
           scoreA:
@@ -145,10 +169,10 @@ function UserMatches({ currentUser }) {
             }
 
             if (Array.isArray(jokerMap[prediction.gameweek])) {
-              jokerMap[prediction.gameweek].push(fixtureId);
+              jokerMap[prediction.gameweek].push(String(fixtureId));
             }
           } else {
-            jokerMap[prediction.gameweek] = fixtureId;
+            jokerMap[prediction.gameweek] = String(fixtureId);
           }
         }
       });
@@ -156,6 +180,9 @@ function UserMatches({ currentUser }) {
       setScores(scoresMap);
       setJokerByGw(jokerMap);
       setChipByGw(chipMap);
+
+      // NEW
+      setSavedRounds(savedRoundsMap);
     } catch (err) {
       alert(err.message || "Failed to load matches");
     } finally {
@@ -168,13 +195,14 @@ function UserMatches({ currentUser }) {
   }, []);
 
   function getLogo(teamName) {
+    if (!teamName) return null;
+
     const cleanedName = teamName.trim();
     const code = countryCodes[cleanedName];
 
     if (!code) return null;
 
     const logoPath = `../assets/teams/${code}.png`;
-
     return logoModules[logoPath] || null;
   }
 
@@ -214,7 +242,8 @@ function UserMatches({ currentUser }) {
 
     setJokerByGw((prev) => ({
       ...prev,
-      [gameweek]: value === "maximum_joker" ? [] : value === "double_jokers" ? [] : "",
+      [gameweek]:
+        value === "maximum_joker" ? [] : value === "double_jokers" ? [] : "",
     }));
   }
 
@@ -233,29 +262,29 @@ function UserMatches({ currentUser }) {
           ? [current]
           : [];
 
-        if (currentArray.includes(fixtureId)) {
+        if (currentArray.includes(String(fixtureId))) {
           return {
             ...prev,
-            [gameweek]: currentArray.filter((id) => id !== fixtureId),
+            [gameweek]: currentArray.filter((id) => id !== String(fixtureId)),
           };
         }
 
         if (currentArray.length >= 2) {
           return {
             ...prev,
-            [gameweek]: [currentArray[1], fixtureId],
+            [gameweek]: [currentArray[1], String(fixtureId)],
           };
         }
 
         return {
           ...prev,
-          [gameweek]: [...currentArray, fixtureId],
+          [gameweek]: [...currentArray, String(fixtureId)],
         };
       }
 
       return {
         ...prev,
-        [gameweek]: fixtureId,
+        [gameweek]: String(fixtureId),
       };
     });
   }
@@ -269,7 +298,6 @@ function UserMatches({ currentUser }) {
       }
 
       groups[key].push(fixture);
-
       return groups;
     }, {});
   }, [fixtures]);
@@ -301,7 +329,8 @@ function UserMatches({ currentUser }) {
     if (visibleOpenFixtures.length === 0) return false;
 
     return visibleOpenFixtures.every((fixture) => {
-      const score = scores[fixture.id];
+      const fixtureId = getFixtureId(fixture);
+      const score = scores[fixtureId];
 
       return (
         score &&
@@ -331,14 +360,18 @@ function UserMatches({ currentUser }) {
       return (
         jokerArray.length === 2 &&
         jokerArray.every((id) =>
-          visibleOpenFixtures.some((fixture) => fixture.id === id)
+          visibleOpenFixtures.some(
+            (fixture) => String(getFixtureId(fixture)) === String(id)
+          )
         )
       );
     }
 
     if (!jokerValue) return false;
 
-    return visibleOpenFixtures.some((fixture) => fixture.id === jokerValue);
+    return visibleOpenFixtures.some(
+      (fixture) => String(getFixtureId(fixture)) === String(jokerValue)
+    );
   }, [visibleOpenFixtures, jokerByGw, chipByGw, selectedRound]);
 
   const canSaveAll = allOpenMatchesCompleted && selectedRoundHasJoker;
@@ -355,10 +388,14 @@ function UserMatches({ currentUser }) {
     }
 
     try {
+      setSaving(true);
+      setSaveMessage("");
+
       const selectedChip = chipByGw[selectedRound] || "none";
 
       const predictionsToSave = visibleOpenFixtures.map((fixture) => {
-        const score = scores[fixture.id];
+        const fixtureId = getFixtureId(fixture);
+        const score = scores[fixtureId];
         const jokerValue = jokerByGw[fixture.gameweek];
 
         let isJoker = false;
@@ -370,13 +407,13 @@ function UserMatches({ currentUser }) {
             ? [jokerValue]
             : [];
 
-          isJoker = jokerArray.includes(fixture.id);
+          isJoker = jokerArray.some((id) => String(id) === String(fixtureId));
         } else if (selectedChip !== "maximum_joker") {
-          isJoker = jokerValue === fixture.id;
+          isJoker = String(jokerValue) === String(fixtureId);
         }
 
         return {
-          fixtureId: fixture.id,
+          fixtureId,
           predictedScoreA: Number(score.scoreA),
           predictedScoreB: Number(score.scoreB),
           isJoker,
@@ -392,170 +429,373 @@ function UserMatches({ currentUser }) {
         }),
       });
 
-      alert("Predictions saved successfully.");
+      // NEW: button changes from Save to Edit immediately
+      setSavedRounds((prev) => ({
+        ...prev,
+        [selectedRound]: true,
+      }));
+
+      // NEW: green message one time
+      setSaveMessage("✅ Predictions saved successfully.");
+
+      setTimeout(() => {
+        setSaveMessage("");
+      }, 3000);
+
       loadData();
     } catch (err) {
       alert(err.message || "Failed to save predictions");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <div className="predict-page" style={{ backgroundImage: `url(${bg})` }}>
-      <div className="predict-overlay"></div>
-
-      <div className="predict-content">
-        <div className="predict-header">
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundImage: `linear-gradient(rgba(0,0,0,.7), rgba(0,0,0,.8)), url(${bg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        color: "white",
+        padding: "18px",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "950px",
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: "18px",
+          }}
+        >
           <div>
-            <p className="admin-kicker">Prediction Mode</p>
-            <h1>Matches</h1>
-            <p>Predict unlocked games and choose your joker/chip.</p>
+            <div
+              style={{
+                display: "inline-flex",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,.12)",
+                border: "1px solid rgba(255,255,255,.16)",
+                fontSize: "12px",
+                fontWeight: "800",
+                marginBottom: "8px",
+              }}
+            >
+              Prediction Mode
+            </div>
+
+            <h1 style={{ margin: 0, fontSize: "30px" }}>Matches</h1>
+
+            <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,.72)" }}>
+              Predict unlocked games and choose your joker/chip.
+            </p>
           </div>
 
-          <button className="admin-black-btn" onClick={() => navigate("/user")}>
+          <button
+            onClick={() => navigate("/user")}
+            style={{
+              border: "none",
+              borderRadius: "14px",
+              padding: "11px 14px",
+              background: "rgba(255,255,255,.14)",
+              color: "white",
+              fontWeight: "800",
+              cursor: "pointer",
+            }}
+          >
             Back
           </button>
         </div>
 
         {loading ? (
-          <div className="admin-glass-card">
-            <div className="empty-state">
-              <h3>Loading matches...</h3>
-            </div>
+          <div
+            style={{
+              background: "rgba(255,255,255,.1)",
+              border: "1px solid rgba(255,255,255,.16)",
+              borderRadius: "20px",
+              padding: "16px",
+            }}
+          >
+            <h3 style={{ margin: 0 }}>Loading matches...</h3>
           </div>
         ) : fixtures.length === 0 ? (
-          <div className="admin-glass-card">
-            <div className="empty-state">
-              <h3>No fixtures yet</h3>
-              <p>The admin has not added fixtures yet.</p>
-            </div>
+          <div
+            style={{
+              background: "rgba(255,255,255,.1)",
+              border: "1px solid rgba(255,255,255,.16)",
+              borderRadius: "20px",
+              padding: "16px",
+            }}
+          >
+            <h3 style={{ marginTop: 0 }}>No fixtures yet</h3>
+            <p style={{ marginBottom: 0, color: "rgba(255,255,255,.72)" }}>
+              The admin has not added fixtures yet.
+            </p>
           </div>
         ) : (
           <>
-            <div className="round-filter-card">
+            <div
+              className="prediction-settings-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+                background: "rgba(255,255,255,.1)",
+                border: "1px solid rgba(255,255,255,.16)",
+                borderRadius: "20px",
+                padding: "16px",
+                marginBottom: "14px",
+              }}
+            >
               <div>
-                <h3>Current Round</h3>
-                <p>Choose the round you want to predict.</p>
-              </div>
+                <h3 style={{ margin: "0 0 6px", fontSize: "15px" }}>
+                  Current Round
+                </h3>
 
-              <select
-                className="round-filter-select"
-                value={selectedRound}
-                onChange={(e) => setSelectedRound(e.target.value)}
-              >
-                {roundOptions.length === 0 ? (
-                  <option value="">No rounds yet</option>
-                ) : (
-                  roundOptions.map((round) => (
-                    <option key={round} value={round}>
-                      {round}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div className="round-filter-card" style={{ marginTop: "16px" }}>
-              <div>
-                <h3>Prediction Chip</h3>
-                <p>
-                  Choose blank or use your one tournament chip.
-                  {usedSpecialChip && (
-                    <span> You already used a chip in another round.</span>
-                  )}
+                <p
+                  style={{
+                    margin: "0 0 8px",
+                    color: "rgba(255,255,255,.66)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Choose the round you want to predict.
                 </p>
+
+                <select
+                  value={selectedRound}
+                  onChange={(e) => setSelectedRound(e.target.value)}
+                  style={{
+                    width: "100%",
+                    borderRadius: "14px",
+                    padding: "12px",
+                    border: "1px solid rgba(255,255,255,.2)",
+                    background: "rgba(0,0,0,.35)",
+                    color: "white",
+                    fontWeight: "800",
+                    outline: "none",
+                  }}
+                >
+                  {roundOptions.length === 0 ? (
+                    <option value="">No rounds yet</option>
+                  ) : (
+                    roundOptions.map((round) => (
+                      <option key={round} value={round}>
+                        {round}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
 
-              <select
-                className="round-filter-select"
-                value={chipByGw[selectedRound] || "none"}
-                onChange={(e) => handleChipChange(selectedRound, e.target.value)}
-                disabled={!selectedRound}
-              >
-                <option value="none">No Chip</option>
-                <option value="triple_joker" disabled={Boolean(usedSpecialChip)}>
-                  Triple Joker
-                </option>
-                <option value="double_jokers" disabled={Boolean(usedSpecialChip)}>
-                  Double Joker
-                </option>
-                <option value="maximum_joker" disabled={Boolean(usedSpecialChip)}>
-                  Maximum Joker
-                </option>
-              </select>
+              <div>
+                <h3 style={{ margin: "0 0 6px", fontSize: "15px" }}>
+                  Prediction Chip
+                </h3>
+
+                <p
+                  style={{
+                    margin: "0 0 8px",
+                    color: "rgba(255,255,255,.66)",
+                    fontSize: "13px",
+                  }}
+                >
+                  Choose blank or use your one tournament chip.
+                </p>
+
+                {usedSpecialChip && (
+                  <p
+                    style={{
+                      margin: "0 0 8px",
+                      color: "#facc15",
+                      fontSize: "13px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    You already used a chip in another round.
+                  </p>
+                )}
+
+                <select
+                  value={chipByGw[selectedRound] || "none"}
+                  onChange={(e) => handleChipChange(selectedRound, e.target.value)}
+                  disabled={!selectedRound || !!usedSpecialChip}
+                  style={{
+                    width: "100%",
+                    borderRadius: "14px",
+                    padding: "12px",
+                    border: "1px solid rgba(255,255,255,.2)",
+                    background: "rgba(0,0,0,.35)",
+                    color: "white",
+                    fontWeight: "800",
+                    outline: "none",
+                    opacity: usedSpecialChip ? 0.6 : 1,
+                  }}
+                >
+                  <option value="none">No Chip</option>
+                  <option value="triple_joker">Triple Joker</option>
+                  <option value="double_jokers">Double Joker</option>
+                  <option value="maximum_joker">Maximum Joker</option>
+                </select>
+              </div>
             </div>
 
-            <div className="predict-board">
-              <div className="predict-date">{selectedRound || "Round"}</div>
+            <h2 style={{ margin: "16px 0 12px" }}>
+              {selectedRound || "Round"}
+            </h2>
 
+            <div style={{ display: "grid", gap: "12px" }}>
               {visibleFixtures.map((fixture) => {
+                const fixtureId = getFixtureId(fixture);
                 const logoA = getLogo(fixture.teamA);
                 const logoB = getLogo(fixture.teamB);
-
-                const currentScore = scores[fixture.id] || {
+                const currentScore = scores[fixtureId] || {
                   scoreA: "",
                   scoreB: "",
                 };
 
-                const isLocked =
-                  fixture.status === "finished" || fixture.isLocked;
-
+                const isLocked = fixture.status === "finished" || fixture.isLocked;
                 const selectedChip = chipByGw[fixture.gameweek] || "none";
                 const jokerValue = jokerByGw[fixture.gameweek];
 
                 const isJokerSelected =
                   selectedChip === "double_jokers"
-                    ? Array.isArray(jokerValue) && jokerValue.includes(fixture.id)
-                    : jokerValue === fixture.id;
+                    ? Array.isArray(jokerValue) &&
+                      jokerValue.some((id) => String(id) === String(fixtureId))
+                    : String(jokerValue) === String(fixtureId);
 
                 return (
-                  <div className="predict-match-row" key={fixture.id}>
-                    <div className="predict-team left-team">
-                      <span>{fixture.teamA}</span>
-                      {logoA && <img src={logoA} alt={fixture.teamA} />}
-                    </div>
+                  <div
+                    key={fixtureId}
+                    className="match-card-grid"
+                    style={{
+                      background: "rgba(255,255,255,.1)",
+                      border: "1px solid rgba(255,255,255,.16)",
+                      borderRadius: "20px",
+                      padding: "14px",
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto 1fr",
+                      gap: "10px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        minWidth: 0,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: "900",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {fixture.teamA}
+                        </div>
 
-                    <div className="predict-center">
-                      <div className="predict-time">
-                        {fixture.kickoffTime || "Kickoff TBA"}
+                        <div
+                          style={{
+                            color: "rgba(255,255,255,.55)",
+                            fontSize: "12px",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {fixture.kickoffTime || "Kickoff TBA"}
+                        </div>
                       </div>
 
-                      <div className={isLocked ? "locked-pill" : "open-pill"}>
+                      {logoA && (
+                        <img
+                          src={logoA}
+                          alt={fixture.teamA}
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            objectFit: "contain",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    <div style={{ textAlign: "center" }}>
+                      <div
+                        style={{
+                          marginBottom: "7px",
+                          fontSize: "11px",
+                          fontWeight: "900",
+                          color: isLocked ? "#fca5a5" : "#86efac",
+                        }}
+                      >
                         {isLocked ? "LOCKED" : "OPEN"}
                       </div>
 
-                      <div className="predict-score-wrap">
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "7px",
+                          justifyContent: "center",
+                        }}
+                      >
                         <input
-                          className="clean-score-input"
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={2}
                           value={currentScore.scoreA}
                           disabled={isLocked}
+                          inputMode="numeric"
                           onChange={(e) =>
-                            handleScoreChange(
-                              fixture.id,
-                              "scoreA",
-                              e.target.value
-                            )
+                            handleScoreChange(fixtureId, "scoreA", e.target.value)
                           }
+                          style={{
+                            width: "44px",
+                            height: "42px",
+                            borderRadius: "12px",
+                            border: "1px solid rgba(255,255,255,.22)",
+                            background: "rgba(0,0,0,.32)",
+                            color: "white",
+                            textAlign: "center",
+                            fontSize: "18px",
+                            fontWeight: "800",
+                            outline: "none",
+                            opacity: isLocked ? 0.55 : 1,
+                          }}
                         />
 
-                        <span className="score-dash">-</span>
+                        <span style={{ fontWeight: "900", opacity: 0.7 }}>-</span>
 
                         <input
-                          className="clean-score-input"
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={2}
                           value={currentScore.scoreB}
                           disabled={isLocked}
+                          inputMode="numeric"
                           onChange={(e) =>
-                            handleScoreChange(
-                              fixture.id,
-                              "scoreB",
-                              e.target.value
-                            )
+                            handleScoreChange(fixtureId, "scoreB", e.target.value)
                           }
+                          style={{
+                            width: "44px",
+                            height: "42px",
+                            borderRadius: "12px",
+                            border: "1px solid rgba(255,255,255,.22)",
+                            background: "rgba(0,0,0,.32)",
+                            color: "white",
+                            textAlign: "center",
+                            fontSize: "18px",
+                            fontWeight: "800",
+                            outline: "none",
+                            opacity: isLocked ? 0.55 : 1,
+                          }}
                         />
                       </div>
 
@@ -563,23 +803,48 @@ function UserMatches({ currentUser }) {
                         selectedRound &&
                         selectedChip !== "maximum_joker" && (
                           <button
-                            className={`joker-btn ${
-                              isJokerSelected ? "joker-selected" : ""
-                            }`}
                             onClick={() =>
-                              handleSelectJoker(fixture.gameweek, fixture.id)
+                              handleSelectJoker(fixture.gameweek, fixtureId)
                             }
+                            style={{
+                              marginTop: "8px",
+                              border: "none",
+                              borderRadius: "999px",
+                              padding: "7px 10px",
+                              background: isJokerSelected
+                                ? "linear-gradient(135deg, #ffd166, #ff9f1c)"
+                                : "rgba(255,255,255,.13)",
+                              color: isJokerSelected ? "#1d1300" : "white",
+                              fontWeight: "900",
+                              cursor: "pointer",
+                            }}
                           >
                             {isJokerSelected ? "🃏 Joker" : "Joker"}
                           </button>
                         )}
 
                       {!isLocked && selectedChip === "maximum_joker" && (
-                        <div className="final-result-pill">Auto Max Joker</div>
+                        <div
+                          style={{
+                            marginTop: "8px",
+                            color: "#ffd166",
+                            fontSize: "12px",
+                            fontWeight: "900",
+                          }}
+                        >
+                          Auto Max Joker
+                        </div>
                       )}
 
                       {isLocked && (
-                        <div className="final-result-pill">
+                        <div
+                          style={{
+                            marginTop: "8px",
+                            color: "rgba(255,255,255,.68)",
+                            fontSize: "12px",
+                            fontWeight: "800",
+                          }}
+                        >
                           {fixture.status === "finished"
                             ? `Final: ${fixture.actualScoreA} - ${fixture.actualScoreB}`
                             : "Closed"}
@@ -587,30 +852,111 @@ function UserMatches({ currentUser }) {
                       )}
                     </div>
 
-                    <div className="predict-team right-team">
-                      {logoB && <img src={logoB} alt={fixture.teamB} />}
-                      <span>{fixture.teamB}</span>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: "8px",
+                        minWidth: 0,
+                        textAlign: "right",
+                      }}
+                    >
+                      {logoB && (
+                        <img
+                          src={logoB}
+                          alt={fixture.teamB}
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            objectFit: "contain",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: "900",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {fixture.teamB}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="save-all-wrap">
+            <div
+              style={{
+                position: "sticky",
+                bottom: "12px",
+                marginTop: "16px",
+                zIndex: 10,
+              }}
+            >
+              {saveMessage && (
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    padding: "12px 14px",
+                    borderRadius: "14px",
+                    background: "rgba(34, 197, 94, 0.18)",
+                    border: "1px solid rgba(34, 197, 94, 0.45)",
+                    color: "#86efac",
+                    fontWeight: "800",
+                    textAlign: "center",
+                  }}
+                >
+                  {saveMessage}
+                </div>
+              )}
+
               <button
-                className="save-all-btn"
-                disabled={!selectedRound || !canSaveAll}
                 onClick={handleSaveAllPredictions}
+                disabled={!canSaveAll || saving}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  borderRadius: "18px",
+                  padding: "15px 16px",
+                  fontSize: "16px",
+                  fontWeight: "900",
+                  cursor: canSaveAll && !saving ? "pointer" : "not-allowed",
+                  background:
+                    canSaveAll && !saving
+                      ? "linear-gradient(135deg, #21d07a, #00a3ff)"
+                      : "rgba(255,255,255,.18)",
+                  color: "white",
+                  boxShadow:
+                    canSaveAll && !saving
+                      ? "0 12px 30px rgba(0,163,255,.32)"
+                      : "none",
+                }}
               >
-                Save Predictions
+                {saving
+                  ? "Saving..."
+                  : savedRounds[selectedRound]
+                  ? "Edit Predictions"
+                  : "Save Predictions"}
               </button>
 
               {!selectedRound ? (
-                <p className="save-helper-text">
+                <p style={{ textAlign: "center", color: "#ffd166" }}>
                   Choose a round first before saving predictions.
                 </p>
+              ) : visibleOpenFixtures.length === 0 ? (
+                <p style={{ textAlign: "center", color: "#ffd166" }}>
+                  All games in this round are locked or finished.
+                </p>
               ) : !canSaveAll ? (
-                <p className="save-helper-text">
+                <p style={{ textAlign: "center", color: "#ffd166" }}>
                   Complete all unlocked games in {selectedRound} and choose the
                   required joker/chip.
                 </p>
@@ -619,6 +965,44 @@ function UserMatches({ currentUser }) {
           </>
         )}
       </div>
+
+      <style>
+        {`
+          input::-webkit-outer-spin-button,
+          input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+
+          input[type=number] {
+            -moz-appearance: textfield;
+          }
+
+          @media (max-width: 650px) {
+            .prediction-settings-grid {
+              grid-template-columns: 1fr !important;
+              padding: 13px !important;
+              border-radius: 18px !important;
+            }
+
+            .match-card-grid {
+              grid-template-columns: 1fr !important;
+              text-align: center !important;
+              gap: 12px !important;
+            }
+
+            .match-card-grid > div:first-child,
+            .match-card-grid > div:last-child {
+              justify-content: center !important;
+              text-align: center !important;
+            }
+
+            .match-card-grid > div:last-child {
+              flex-direction: row-reverse !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }
