@@ -75,6 +75,15 @@ function AdminHome({ currentUser, setCurrentUser }) {
   <h2>Leaderboard</h2>
   <p>View total points and rankings.</p>
 </button>
+
+          <button
+  className="admin-menu-card"
+  onClick={() => navigate("/admin/cup")}
+>
+  <span>06</span>
+  <h2>Cup Manager</h2>
+  <p>Generate random groups and group-stage games.</p>
+</button>
         </div>
       </div>
     </div>

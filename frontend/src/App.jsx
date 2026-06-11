@@ -14,6 +14,8 @@ import AdminUsers from "./pages/AdminUsers";
 import Leaderboard from "./pages/Leaderboard";
 import MyPredictions from "./pages/MyPredictions";
 import PublicPredictions from "./pages/PublicPredictions";
+import Cup from "./pages/Cup";
+import AdminCup from "./pages/AdminCup";
 
 function getSavedUser() {
   try {
@@ -181,6 +183,28 @@ function App() {
           )
         }
       />
+
+      <Route
+  path="/cup"
+  element={
+    currentUser ? (
+      <Cup currentUser={currentUser} />
+    ) : (
+      <Navigate to="/login" replace />
+    )
+  }
+/>
+
+<Route
+  path="/admin/cup"
+  element={
+    currentUser && currentUser.role === "admin" ? (
+      <AdminCup currentUser={currentUser} />
+    ) : (
+      <Navigate to="/login" replace />
+    )
+  }
+/>
     </Routes>
   );
 }

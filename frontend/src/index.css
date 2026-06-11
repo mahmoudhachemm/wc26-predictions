@@ -6191,3 +6191,800 @@ body,
   transform: none;
   filter: none;
 }
+.menu-grid .menu-card {
+  text-align: left;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.menu-grid .menu-card span {
+  position: relative;
+  z-index: 2;
+}
+
+.menu-grid .menu-card h2,
+.menu-grid .menu-card p {
+  text-align: left;
+}
+
+.menu-grid .menu-card::before {
+  content: "";
+}
+
+.menu-grid .menu-card::after {
+  content: "";
+}
+/* =========================
+   CUP PAGE
+========================= */
+
+.cup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cup-group-card {
+  background: rgba(10, 10, 14, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+.cup-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cup-label {
+  margin: 0 0 5px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.cup-group-card h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.cup-count {
+  min-width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cup-count span {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 2px;
+}
+
+.cup-users {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cup-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cup-user-me {
+  border-color: rgba(37, 211, 102, 0.55);
+  background: rgba(37, 211, 102, 0.12);
+}
+
+.cup-user-number {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.cup-user-name {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.you-badge {
+  margin-left: auto;
+  color: #25d366;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid rgba(37, 211, 102, 0.45);
+  padding: 4px 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.cup-section-title {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin: 16px 0 9px;
+}
+
+.cup-standings {
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 16px;
+}
+
+.cup-standings-head,
+.cup-standings-row {
+  display: grid;
+  grid-template-columns: 42px 1fr 38px 38px 38px;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+}
+
+.cup-standings-head {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cup-standings-row {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.045);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cup-standings-row span:nth-child(2) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qualified-row {
+  background: rgba(37, 211, 102, 0.1);
+}
+
+.third-row {
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.cup-rounds {
+  display: grid;
+  gap: 12px;
+}
+
+.cup-round-block {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  padding: 10px;
+}
+
+.cup-round-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 9px;
+}
+
+.cup-match-card {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.cup-match-card:last-child {
+  margin-bottom: 0;
+}
+
+.cup-match-users {
+  display: grid;
+  grid-template-columns: 1fr 32px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.cup-match-user {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  border-radius: 12px;
+  padding: 9px;
+  color: #fff;
+  border: 1px solid transparent;
+}
+
+.cup-match-user span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cup-match-user strong {
+  font-size: 15px;
+  font-weight: 900;
+  flex: 0 0 auto;
+}
+
+.cup-match-winner {
+  border-color: rgba(37, 211, 102, 0.55);
+  background: rgba(37, 211, 102, 0.12);
+}
+
+.cup-vs {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.cup-match-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cup-match-footer span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-empty {
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 11px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .cup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .cup-group-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .cup-group-card h2 {
+    font-size: 22px;
+  }
+
+  .cup-count {
+    min-width: 52px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  .cup-standings-head,
+  .cup-standings-row {
+    grid-template-columns: 34px 1fr 33px 33px 33px;
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .cup-match-users {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .cup-vs {
+    display: none;
+  }
+
+  .cup-match-footer {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cup-user-name,
+  .cup-match-user span {
+    font-size: 13px;
+  }
+}
+
+/* =========================
+   CUP ADMIN
+========================= */
+
+.cup-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cup-admin-actions .admin-black-btn {
+  min-height: 48px;
+}
+
+.cup-admin-actions .admin-black-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cup-admin-decision {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cup-admin-decision button {
+  border: none;
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cup-admin-decision button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.cup-admin-decision button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .cup-admin-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .cup-admin-actions .admin-black-btn {
+    width: 100%;
+  }
+
+  .cup-admin-decision {
+    grid-template-columns: 1fr;
+  }
+}
+/* =========================
+   CUP PAGE + CUP ADMIN
+========================= */
+
+.cup-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cup-admin-actions .admin-black-btn {
+  min-height: 48px;
+}
+
+.cup-admin-actions .admin-black-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cup-group-card {
+  background: rgba(10, 10, 14, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+.cup-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cup-label {
+  margin: 0 0 5px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.cup-group-card h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.cup-count {
+  min-width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cup-count span {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 2px;
+}
+
+.cup-users {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cup-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cup-user-me {
+  border-color: rgba(37, 211, 102, 0.55);
+  background: rgba(37, 211, 102, 0.12);
+}
+
+.cup-user-number {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.cup-user-name {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.you-badge {
+  margin-left: auto;
+  color: #25d366;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid rgba(37, 211, 102, 0.45);
+  padding: 4px 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.cup-section-title {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin: 16px 0 9px;
+}
+
+.cup-standings {
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 16px;
+}
+
+.cup-standings-head,
+.cup-standings-row {
+  display: grid;
+  grid-template-columns: 42px 1fr 38px 38px 38px;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+}
+
+.cup-standings-head {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cup-standings-row {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.045);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cup-standings-row span:nth-child(2) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qualified-row {
+  background: rgba(37, 211, 102, 0.1);
+}
+
+.third-row {
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.cup-rounds {
+  display: grid;
+  gap: 12px;
+}
+
+.cup-round-block {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  padding: 10px;
+}
+
+.cup-round-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 9px;
+}
+
+.cup-match-card {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.cup-match-card:last-child {
+  margin-bottom: 0;
+}
+
+.cup-match-users {
+  display: grid;
+  grid-template-columns: 1fr 32px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.cup-match-user {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  border-radius: 12px;
+  padding: 9px;
+  color: #fff;
+  border: 1px solid transparent;
+}
+
+.cup-match-user span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cup-match-user strong {
+  font-size: 15px;
+  font-weight: 900;
+  flex: 0 0 auto;
+}
+
+.cup-match-winner {
+  border-color: rgba(37, 211, 102, 0.55);
+  background: rgba(37, 211, 102, 0.12);
+}
+
+.cup-vs {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.cup-match-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cup-match-footer span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cup-admin-decision {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cup-admin-decision button {
+  border: none;
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cup-admin-decision button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.cup-admin-decision button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mini-empty {
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 11px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .cup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .cup-admin-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .cup-admin-actions .admin-black-btn {
+    width: 100%;
+  }
+
+  .cup-group-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .cup-group-card h2 {
+    font-size: 22px;
+  }
+
+  .cup-count {
+    min-width: 52px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  .cup-standings-head,
+  .cup-standings-row {
+    grid-template-columns: 34px 1fr 33px 33px 33px;
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .cup-match-users {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .cup-vs {
+    display: none;
+  }
+
+  .cup-match-footer {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cup-admin-decision {
+    grid-template-columns: 1fr;
+  }
+
+  .cup-user-name,
+  .cup-match-user span {
+    font-size: 13px;
+  }
+}

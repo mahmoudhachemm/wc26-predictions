@@ -38,31 +38,40 @@ function UserHome({ currentUser, setCurrentUser }) {
           </button>
 
           <button
-  className="admin-menu-card"
-  onClick={() => navigate("/leaderboard")}
->
-  <span>02</span>
-  <h2>Leaderboard</h2>
-  <p>See who is winning.</p>
-</button>
+            className="admin-menu-card"
+            onClick={() => navigate("/leaderboard")}
+          >
+            <span>02</span>
+            <h2>Leaderboard</h2>
+            <p>See who is winning.</p>
+          </button>
 
           <button
-  className="admin-menu-card"
-  onClick={() => navigate("/user/predictions")}
->
-  <span>03</span>
-  <h2>My Predictions</h2>
-  <p>Check your predictions and points.</p>
-</button>
+            className="admin-menu-card"
+            onClick={() => navigate("/user/predictions")}
+          >
+            <span>03</span>
+            <h2>My Predictions</h2>
+            <p>Check your predictions and points.</p>
+          </button>
 
-<button
-  className="admin-menu-card"
-  onClick={() => navigate("/user/all-predictions")}
->
-  <span>04</span>
-  <h2>All Predictions</h2>
-  <p>See everyone’s predictions after games are locked.</p>
-</button>
+          <button
+            className="admin-menu-card"
+            onClick={() => navigate("/user/all-predictions")}
+          >
+            <span>04</span>
+            <h2>All Predictions</h2>
+            <p>See everyone’s predictions after games are locked.</p>
+          </button>
+
+          <button
+            className="admin-menu-card"
+            onClick={() => navigate("/cup")}
+          >
+            <span>05</span>
+            <h2>Cup</h2>
+            <p>View groups, H2H games, and standings.</p>
+          </button>
         </div>
       </div>
     </div>

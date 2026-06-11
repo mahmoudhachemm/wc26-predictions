@@ -12,6 +12,7 @@ import predictionRoutes from "./routes/predictionRoutes.js";
 import resultRoutes from "./routes/resultRoutes.js";
 import leaderboardRoutes from "./routes/leaderboardRoutes.js";
 import settingRoutes from "./routes/settingRoutes.js";
+import cupRoutes from "./routes/cupRoutes.js";
 
 dotenv.config();
 
@@ -33,7 +34,6 @@ mongoose
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log("MongoDB error:", err));
 
-// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/fixtures", fixtureRoutes);
@@ -41,11 +41,10 @@ app.use("/api/predictions", predictionRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/settings", settingRoutes);
+app.use("/api/cup", cupRoutes);
 
-// Frontend serving
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const frontendPath = path.join(__dirname, "../dist");
 
 app.use(express.static(frontendPath));
