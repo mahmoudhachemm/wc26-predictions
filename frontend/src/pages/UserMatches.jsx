@@ -72,10 +72,10 @@ function UserMatches({ currentUser }) {
   const [fixtures, setFixtures] = useState([]);
   const [scores, setScores] = useState({});
   const [jokerByGw, setJokerByGw] = useState({});
+  const [cupJokerByGw, setCupJokerByGw] = useState({});
   const [chipByGw, setChipByGw] = useState({});
   const [selectedRound, setSelectedRound] = useState("");
   const [loading, setLoading] = useState(true);
-
   const [savedRounds, setSavedRounds] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -98,11 +98,12 @@ function UserMatches({ currentUser }) {
     try {
       setLoading(true);
 
-      const [fixturesData, myPredictions, savedCurrentRound] = await Promise.all([
-        apiRequest("/fixtures"),
-        apiRequest("/predictions/mine"),
-        getCurrentRound(),
-      ]);
+      const [fixturesData, myPredictions, savedCurrentRound] =
+        await Promise.all([
+          apiRequest("/fixtures"),
+          apiRequest("/predictions/mine"),
+          getCurrentRound(),
+        ]);
 
       setFixtures(fixturesData);
 
@@ -116,6 +117,7 @@ function UserMatches({ currentUser }) {
 
       const scoresMap = {};
       const jokerMap = {};
+      const cupJokerMap = {};
       const chipMap = {};
       const savedRoundsMap = {};
 
@@ -147,6 +149,10 @@ function UserMatches({ currentUser }) {
           chipMap[prediction.gameweek] = prediction.specialChip;
         }
 
+        if (prediction.isCupJoker) {
+          cupJokerMap[prediction.gameweek] = fixtureId;
+        }
+
         if (prediction.isJoker) {
           if (prediction.specialChip === "double_jokers") {
             if (!jokerMap[prediction.gameweek]) {
@@ -164,6 +170,7 @@ function UserMatches({ currentUser }) {
 
       setScores(scoresMap);
       setJokerByGw(jokerMap);
+      setCupJokerByGw(cupJokerMap);
       setChipByGw(chipMap);
       setSavedRounds(savedRoundsMap);
     } catch (err) {
@@ -184,6 +191,7 @@ function UserMatches({ currentUser }) {
     if (!code) return null;
 
     const logoPath = `../assets/teams/${code}.png`;
+
     return logoModules[logoPath] || null;
   }
 
@@ -264,10 +272,17 @@ function UserMatches({ currentUser }) {
       }
 
       return {
-  ...prev,
-  [gameweek]: current === fixtureId ? "" : fixtureId,
-};
+        ...prev,
+        [gameweek]: current === fixtureId ? "" : fixtureId,
+      };
     });
+  }
+
+  function handleSelectCupJoker(gameweek, fixtureId) {
+    setCupJokerByGw((prev) => ({
+      ...prev,
+      [gameweek]: prev[gameweek] === fixtureId ? "" : fixtureId,
+    }));
   }
 
   const fixturesByGameweek = useMemo(() => {
@@ -279,12 +294,14 @@ function UserMatches({ currentUser }) {
       }
 
       groups[key].push(fixture);
+
       return groups;
     }, {});
   }, [fixtures]);
 
   const roundOptions = useMemo(() => {
     const rounds = Object.keys(fixturesByGameweek);
+
     return gameweekOptions.filter((round) => rounds.includes(round));
   }, [fixturesByGameweek]);
 
@@ -350,7 +367,18 @@ function UserMatches({ currentUser }) {
     return visibleOpenFixtures.some((fixture) => fixture.id === jokerValue);
   }, [visibleOpenFixtures, jokerByGw, chipByGw, selectedRound]);
 
-  const canSaveAll = allOpenMatchesCompleted && selectedRoundHasJoker;
+  const selectedRoundHasCupJoker = useMemo(() => {
+    if (visibleOpenFixtures.length === 0 || !selectedRound) return false;
+
+    const cupJokerValue = cupJokerByGw[selectedRound];
+
+    if (!cupJokerValue) return false;
+
+    return visibleOpenFixtures.some((fixture) => fixture.id === cupJokerValue);
+  }, [visibleOpenFixtures, cupJokerByGw, selectedRound]);
+
+  const canSaveAll =
+    allOpenMatchesCompleted && selectedRoundHasJoker && selectedRoundHasCupJoker;
 
   async function handleSaveAllPredictions() {
     if (!selectedRound) {
@@ -359,7 +387,9 @@ function UserMatches({ currentUser }) {
     }
 
     if (!canSaveAll) {
-      alert("Complete all unlocked match predictions and choose the required joker/chip.");
+      alert(
+        "Complete all unlocked match predictions, choose the required joker/chip, and choose your Main Cup Joker."
+      );
       return;
     }
 
@@ -391,6 +421,7 @@ function UserMatches({ currentUser }) {
           predictedScoreA: Number(score.scoreA),
           predictedScoreB: Number(score.scoreB),
           isJoker,
+          isCupJoker: cupJokerByGw[fixture.gameweek] === fixture.id,
         };
       });
 
@@ -421,47 +452,48 @@ function UserMatches({ currentUser }) {
   }
 
   return (
-    <div className="predict-page" style={{ backgroundImage: `url(${bg})` }}>
-      <div className="predict-overlay"></div>
+    <div
+      className="page matches-page"
+      style={{ backgroundImage: `url(${bg})` }}
+    >
+      {saveMessage && (
+        <div className="success-popup">
+          <span>✅ {saveMessage}</span>
+        </div>
+      )}
 
-      {saveMessage && <div className="success-popup">✅ {saveMessage}</div>}
-
-      <div className="predict-content">
-        <div className="predict-header">
+      <div className="page-shell">
+        <div className="page-header">
           <div>
-            <p className="admin-kicker">Prediction Mode</p>
+            <p className="eyebrow">Prediction Mode</p>
             <h1>Matches</h1>
-            <p>Predict unlocked games and choose your joker/chip.</p>
+            <p>
+              Predict unlocked games, choose your leaderboard joker/chip, and
+              choose your Main Cup Joker.
+            </p>
           </div>
 
-          <button className="admin-black-btn" onClick={() => navigate("/user")}>
+          <button type="button" onClick={() => navigate("/user")}>
             Back
           </button>
         </div>
 
         {loading ? (
-          <div className="admin-glass-card">
-            <div className="empty-state">
-              <h3>Loading matches...</h3>
-            </div>
+          <div className="empty-card">
+            <h3>Loading matches...</h3>
           </div>
         ) : fixtures.length === 0 ? (
-          <div className="admin-glass-card">
-            <div className="empty-state">
-              <h3>No fixtures yet</h3>
-              <p>The admin has not added fixtures yet.</p>
-            </div>
+          <div className="empty-card">
+            <h3>No fixtures yet</h3>
+            <p>The admin has not added fixtures yet.</p>
           </div>
         ) : (
           <>
-            <div className="round-filter-card">
-              <div>
-                <h3>Current Round</h3>
-                <p>Choose the round you want to predict.</p>
-              </div>
+            <div className="round-card">
+              <h3>Current Round</h3>
+              <p>Choose the round you want to predict.</p>
 
               <select
-                className="round-filter-select"
                 value={selectedRound}
                 onChange={(e) => setSelectedRound(e.target.value)}
               >
@@ -477,38 +509,45 @@ function UserMatches({ currentUser }) {
               </select>
             </div>
 
-            <div className="round-filter-card" style={{ marginTop: "16px" }}>
-              <div>
-                <h3>Prediction Chip</h3>
-                <p>
-                  Choose blank or use your one tournament chip.
-                  {usedSpecialChip && (
-                    <span> You already used a chip in another round.</span>
-                  )}
-                </p>
-              </div>
+            <div className="round-card">
+              <h3>Prediction Chip</h3>
+              <p>
+                Choose blank or use your one tournament chip.
+                {usedSpecialChip && (
+                  <span className="chip-used-note">
+                    {" "}
+                    You already used a chip in another round.
+                  </span>
+                )}
+              </p>
 
               <select
-                className="round-filter-select"
                 value={chipByGw[selectedRound] || "none"}
                 onChange={(e) => handleChipChange(selectedRound, e.target.value)}
-                disabled={!selectedRound}
+                disabled={!selectedRound || Boolean(usedSpecialChip)}
               >
                 <option value="none">No Chip</option>
-                <option value="triple_joker" disabled={Boolean(usedSpecialChip)}>
-                  Triple Joker
-                </option>
-                <option value="double_jokers" disabled={Boolean(usedSpecialChip)}>
-                  Double Joker
-                </option>
-                <option value="maximum_joker" disabled={Boolean(usedSpecialChip)}>
-                  Maximum Joker
-                </option>
+                <option value="triple_joker">Triple Joker</option>
+                <option value="double_jokers">Double Joker</option>
+                <option value="maximum_joker">Maximum Joker</option>
               </select>
+
+              <p className="helper-text">
+                Chips count only in the general leaderboard. They do not count
+                in the Cup H2H.
+              </p>
             </div>
 
-            <div className="predict-board">
-              <div className="predict-date">{selectedRound || "Round"}</div>
+            <div className="round-card">
+              <h3>Main Cup Joker</h3>
+              <p>
+                Choose one match as your Cup Joker. This joker counts only for
+                Cup H2H scoring.
+              </p>
+            </div>
+
+            <div className="matches-list">
+              <h3>{selectedRound || "Round"}</h3>
 
               {visibleFixtures.map((fixture) => {
                 const logoA = getLogo(fixture.teamA);
@@ -530,46 +569,63 @@ function UserMatches({ currentUser }) {
                     ? Array.isArray(jokerValue) && jokerValue.includes(fixture.id)
                     : jokerValue === fixture.id;
 
+                const isCupJokerSelected =
+                  cupJokerByGw[fixture.gameweek] === fixture.id;
+
                 return (
-                  <div className="predict-match-row" key={fixture.id}>
-                    <div className="predict-team left-team">
+                  <div key={fixture.id} className="match-card">
+                    <div className="team team-left">
                       <span>{fixture.teamA}</span>
-                      {logoA && <img src={logoA} alt={fixture.teamA} />}
+                      {logoA && (
+                        <img
+                          src={logoA}
+                          alt={fixture.teamA}
+                          className="team-logo"
+                        />
+                      )}
                     </div>
 
-                    <div className="predict-center">
-                      <div className="predict-time">
+                    <div className="match-center">
+                      <div className="match-time">
                         {fixture.kickoffTime || "Kickoff TBA"}
                       </div>
 
-                      <div className={isLocked ? "locked-pill" : "open-pill"}>
+                      <div
+                        className={`match-status ${
+                          isLocked ? "locked" : "open"
+                        }`}
+                      >
                         {isLocked ? "LOCKED" : "OPEN"}
                       </div>
 
-                      <div className="predict-score-wrap">
+                      <div className="score-row">
                         <input
-                          className="clean-score-input"
                           type="text"
                           inputMode="numeric"
-                          maxLength={2}
                           value={currentScore.scoreA}
                           disabled={isLocked}
                           onChange={(e) =>
-                            handleScoreChange(fixture.id, "scoreA", e.target.value)
+                            handleScoreChange(
+                              fixture.id,
+                              "scoreA",
+                              e.target.value
+                            )
                           }
                         />
 
-                        <span className="score-dash">-</span>
+                        <span>-</span>
 
                         <input
-                          className="clean-score-input"
                           type="text"
                           inputMode="numeric"
-                          maxLength={2}
                           value={currentScore.scoreB}
                           disabled={isLocked}
                           onChange={(e) =>
-                            handleScoreChange(fixture.id, "scoreB", e.target.value)
+                            handleScoreChange(
+                              fixture.id,
+                              "scoreB",
+                              e.target.value
+                            )
                           }
                         />
                       </div>
@@ -578,23 +634,43 @@ function UserMatches({ currentUser }) {
                         selectedRound &&
                         selectedChip !== "maximum_joker" && (
                           <button
+                            type="button"
                             className={`joker-btn ${
-                              isJokerSelected ? "joker-selected" : ""
+                              isJokerSelected ? "active" : ""
                             }`}
                             onClick={() =>
                               handleSelectJoker(fixture.gameweek, fixture.id)
                             }
                           >
-                            {isJokerSelected ? " Joker" : "Joker"}
+                            {isJokerSelected ? "Joker ✓" : "Joker"}
                           </button>
                         )}
 
                       {!isLocked && selectedChip === "maximum_joker" && (
-                        <div className="final-result-pill">Auto Max Joker</div>
+                        <div className="auto-joker-label">Auto Max Joker</div>
+                      )}
+
+                      {!isLocked && selectedRound && (
+                        <button
+                          type="button"
+                          className={`joker-btn cup-joker-btn ${
+                            isCupJokerSelected ? "active" : ""
+                          }`}
+                          onClick={() =>
+                            handleSelectCupJoker(
+                              fixture.gameweek,
+                              fixture.id
+                            )
+                          }
+                        >
+                          {isCupJokerSelected
+                            ? "Cup Joker ✓"
+                            : "Cup Joker"}
+                        </button>
                       )}
 
                       {isLocked && (
-                        <div className="final-result-pill">
+                        <div className="final-score">
                           {fixture.status === "finished"
                             ? `Final: ${fixture.actualScoreA} - ${fixture.actualScoreB}`
                             : "Closed"}
@@ -602,8 +678,14 @@ function UserMatches({ currentUser }) {
                       )}
                     </div>
 
-                    <div className="predict-team right-team">
-                      {logoB && <img src={logoB} alt={fixture.teamB} />}
+                    <div className="team team-right">
+                      {logoB && (
+                        <img
+                          src={logoB}
+                          alt={fixture.teamB}
+                          className="team-logo"
+                        />
+                      )}
                       <span>{fixture.teamB}</span>
                     </div>
                   </div>
@@ -611,32 +693,27 @@ function UserMatches({ currentUser }) {
               })}
             </div>
 
-            <div className="save-all-wrap">
-              <button
-  className={`save-all-btn ${
-    savedRounds[selectedRound] ? "edit-predictions-btn" : "save-predictions-btn"
-  }`}
-  disabled={!selectedRound || !canSaveAll || saving}
-  onClick={handleSaveAllPredictions}
->
-  {saving
-    ? "Saving..."
-    : savedRounds[selectedRound]
-    ? "Edit Predictions"
-    : "Save Predictions"}
-</button>
+            <button
+              type="button"
+              className="save-all-btn"
+              disabled={!canSaveAll || saving}
+              onClick={handleSaveAllPredictions}
+            >
+              {saving
+                ? "Saving..."
+                : savedRounds[selectedRound]
+                ? "Edit Predictions"
+                : "Save Predictions"}
+            </button>
 
-              {!selectedRound ? (
-                <p className="save-helper-text">
-                  Choose a round first before saving predictions.
-                </p>
-              ) : !canSaveAll ? (
-                <p className="save-helper-text">
-                  Complete all unlocked games in {selectedRound} and choose the
-                  required joker/chip.
-                </p>
-              ) : null}
-            </div>
+            {!selectedRound ? (
+              <p className="helper-text">Choose a round first before saving predictions.</p>
+            ) : !canSaveAll ? (
+              <p className="helper-text">
+                Complete all unlocked games in {selectedRound}, choose the
+                required joker/chip, and choose your Main Cup Joker.
+              </p>
+            ) : null}
           </>
         )}
       </div>

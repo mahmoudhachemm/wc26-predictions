@@ -37,7 +37,9 @@ async function recalculateMaximumJokers(gameweek) {
   });
 
   const userIds = [
-    ...new Set(maxChipPredictions.map((prediction) => prediction.user.toString())),
+    ...new Set(
+      maxChipPredictions.map((prediction) => prediction.user.toString())
+    ),
   ];
 
   for (const userId of userIds) {
@@ -53,7 +55,10 @@ async function recalculateMaximumJokers(gameweek) {
     let bestPrediction = userRoundPredictions[0];
 
     for (const prediction of userRoundPredictions) {
-      if (Number(prediction.basePoints || 0) > Number(bestPrediction.basePoints || 0)) {
+      if (
+        Number(prediction.basePoints || 0) >
+        Number(bestPrediction.basePoints || 0)
+      ) {
         bestPrediction = prediction;
       }
     }
@@ -64,6 +69,9 @@ async function recalculateMaximumJokers(gameweek) {
 
       prediction.isAutoMaxJoker = isBest;
       prediction.isJoker = false;
+
+      // General leaderboard points only.
+      // Maximum Joker chip does not affect cup H2H.
       prediction.points = isBest
         ? Number(prediction.basePoints || 0) * 2
         : Number(prediction.basePoints || 0);
@@ -107,11 +115,20 @@ router.patch("/:fixtureId", protect, adminOnly, async (req, res) => {
     );
 
     prediction.basePoints = basePoints;
+
+    // Cup H2H scoring.
+    // Chips do NOT count here.
+    // Only Main Cup Joker doubles the base points.
+    prediction.cupBasePoints = basePoints;
+    prediction.cupPoints = prediction.isCupJoker ? basePoints * 2 : basePoints;
+
     prediction.fixtureStatus = "finished";
     prediction.actualScoreA = actualScoreA;
     prediction.actualScoreB = actualScoreB;
     prediction.isAutoMaxJoker = false;
 
+    // General leaderboard scoring.
+    // Chips count here.
     if (prediction.specialChip === "maximum_joker") {
       prediction.isJoker = false;
       prediction.points = basePoints;
@@ -150,6 +167,8 @@ router.delete("/:fixtureId", protect, adminOnly, async (req, res) => {
     {
       basePoints: 0,
       points: 0,
+      cupBasePoints: 0,
+      cupPoints: 0,
       fixtureStatus: "upcoming",
       actualScoreA: null,
       actualScoreB: null,

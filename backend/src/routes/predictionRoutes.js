@@ -96,6 +96,7 @@ router.get("/all", protect, adminOnly, async (req, res) => {
     .populate("fixture");
 
   const fixtureFilter = {};
+
   if (round) fixtureFilter.gameweek = round;
   if (fixtureId) fixtureFilter._id = fixtureId;
 
@@ -189,7 +190,9 @@ router.post("/save-round", protect, async (req, res) => {
   );
 
   const uniqueFixtureIds = new Set();
+
   let jokerCount = 0;
+  let cupJokerCount = 0;
 
   for (const prediction of predictions) {
     const fixtureId = prediction.fixtureId;
@@ -219,6 +222,10 @@ router.post("/save-round", protect, async (req, res) => {
     if (prediction.isJoker) {
       jokerCount += 1;
     }
+
+    if (prediction.isCupJoker) {
+      cupJokerCount += 1;
+    }
   }
 
   if (specialChip === "double_jokers") {
@@ -240,6 +247,12 @@ router.post("/save-round", protect, async (req, res) => {
         message: "Choose exactly one joker for this round",
       });
     }
+  }
+
+  if (cupJokerCount !== 1) {
+    return res.status(400).json({
+      message: "Choose exactly one Main Cup Joker for this round",
+    });
   }
 
   if (specialChip !== "none") {
@@ -275,6 +288,7 @@ router.post("/save-round", protect, async (req, res) => {
             predictedScoreA: Number(prediction.predictedScoreA),
             predictedScoreB: Number(prediction.predictedScoreB),
             isJoker: Boolean(prediction.isJoker),
+            isCupJoker: Boolean(prediction.isCupJoker),
             specialChip,
             isAutoMaxJoker: false,
             fixtureStatus: fixture.status,
