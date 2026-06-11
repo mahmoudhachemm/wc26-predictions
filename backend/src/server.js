@@ -12,7 +12,7 @@ import predictionRoutes from "./routes/predictionRoutes.js";
 import resultRoutes from "./routes/resultRoutes.js";
 import leaderboardRoutes from "./routes/leaderboardRoutes.js";
 import settingRoutes from "./routes/settingRoutes.js";
-
+import cupRoutes from "./routes/cupRoutes.js";
 
 dotenv.config();
 
@@ -41,6 +41,7 @@ app.use("/api/predictions", predictionRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/settings", settingRoutes);
+app.use("/api/cup", cupRoutes);
 
 
 const __filename = fileURLToPath(import.meta.url);
