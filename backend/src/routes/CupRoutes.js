@@ -68,7 +68,7 @@ async function getUserCupData(userId, gameweek) {
   });
 
   const cupPoints = predictions.reduce(
-    (sum, prediction) => sum + Number(prediction.cupPoints || 0),
+    (sum, prediction) => sum + Number(prediction.cupPoints || prediction.points || 0),
     0
   );
 
@@ -273,32 +273,77 @@ async function buildGroupStandings() {
   return standings;
 }
 
-function buildRandomGroupSchedule() {
-  const scheduleTemplates = [
-    [
-      [0, 1],
-      [2, 3],
-    ],
-    [
-      [0, 2],
-      [1, 3],
-    ],
-    [
-      [0, 3],
-      [1, 2],
-    ],
-  ];
+function getScheduleForGroup(groupSize) {
+  if (groupSize === 4) {
+    return [
+      [
+        [0, 1],
+        [2, 3],
+      ],
+      [
+        [0, 2],
+        [1, 3],
+      ],
+      [
+        [0, 3],
+        [1, 2],
+      ],
+    ];
+  }
 
-  return shuffleArray(scheduleTemplates);
+  if (groupSize === 3) {
+    return [
+      [[0, 1]],
+      [[0, 2]],
+      [[1, 2]],
+    ];
+  }
+
+  if (groupSize === 2) {
+    return [
+      [[0, 1]],
+      [],
+      [],
+    ];
+  }
+
+  return [[], [], []];
+}
+
+function splitUsersIntoGroups(users) {
+  const totalUsers = users.length;
+
+  if (totalUsers < 2) {
+    throw new Error("Cup needs at least 2 users.");
+  }
+
+  if (totalUsers > 48) {
+    throw new Error("Cup group stage supports maximum 48 users.");
+  }
+
+  const groupCount = Math.min(12, Math.ceil(totalUsers / 4));
+  const groups = Array.from({ length: groupCount }, () => []);
+
+  users.forEach((user, index) => {
+    groups[index % groupCount].push(user);
+  });
+
+  return groups;
 }
 
 async function generateRandomGroupStage(req, res) {
   try {
     const playingUsers = await User.find({ role: "user" }).sort({ fullName: 1 });
 
-    if (playingUsers.length !== 48) {
+    if (playingUsers.length < 2) {
       return res.status(400).json({
-        message: `Cup group stage needs exactly 48 playing users. Current playing users: ${playingUsers.length}`,
+        message: `Cup needs at least 2 playing users. Current playing users: ${playingUsers.length}`,
+      });
+    }
+
+    if (playingUsers.length > 48) {
+      return res.status(400).json({
+        message: `Cup group stage supports maximum 48 users. Current playing users: ${playingUsers.length}`,
       });
     }
 
@@ -306,26 +351,30 @@ async function generateRandomGroupStage(req, res) {
     await CupMatch.deleteMany({});
 
     const shuffledUsers = shuffleArray(playingUsers);
+    const groupedUsers = splitUsersIntoGroups(shuffledUsers);
 
     let matchNumber = 1;
 
-    for (let groupIndex = 0; groupIndex < 12; groupIndex += 1) {
-      const groupUsers = shuffledUsers.slice(groupIndex * 4, groupIndex * 4 + 4);
+    for (let groupIndex = 0; groupIndex < groupedUsers.length; groupIndex += 1) {
+      const groupUsers = groupedUsers[groupIndex];
+      const groupName = GROUP_NAMES[groupIndex];
 
       const group = await CupGroup.create({
-        name: GROUP_NAMES[groupIndex],
+        name: groupName,
         users: groupUsers.map((user) => user._id),
       });
 
-      const randomizedSchedule = buildRandomGroupSchedule();
+      const randomizedSchedule = shuffleArray(getScheduleForGroup(groupUsers.length));
 
       for (let roundIndex = 0; roundIndex < GROUP_ROUNDS.length; roundIndex += 1) {
         const gameweek = GROUP_ROUNDS[roundIndex];
-        const roundPairs = randomizedSchedule[roundIndex];
+        const roundPairs = randomizedSchedule[roundIndex] || [];
 
         for (const pair of roundPairs) {
           const userA = groupUsers[pair[0]];
           const userB = groupUsers[pair[1]];
+
+          if (!userA || !userB) continue;
 
           await CupMatch.create({
             phase: "Group Stage",
