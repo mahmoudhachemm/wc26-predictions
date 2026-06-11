@@ -72,6 +72,7 @@ function UserMatches({ currentUser }) {
   const [fixtures, setFixtures] = useState([]);
   const [scores, setScores] = useState({});
   const [jokerByGw, setJokerByGw] = useState({});
+  const [cupJokerByGw, setCupJokerByGw] = useState({});
   const [chipByGw, setChipByGw] = useState({});
   const [selectedRound, setSelectedRound] = useState("");
   const [loading, setLoading] = useState(true);
@@ -116,6 +117,7 @@ function UserMatches({ currentUser }) {
 
       const scoresMap = {};
       const jokerMap = {};
+      const cupJokerMap = {};
       const chipMap = {};
       const savedRoundsMap = {};
 
@@ -147,6 +149,10 @@ function UserMatches({ currentUser }) {
           chipMap[prediction.gameweek] = prediction.specialChip;
         }
 
+        if (prediction.isCupJoker) {
+          cupJokerMap[prediction.gameweek] = fixtureId;
+        }
+
         if (prediction.isJoker) {
           if (prediction.specialChip === "double_jokers") {
             if (!jokerMap[prediction.gameweek]) {
@@ -164,6 +170,7 @@ function UserMatches({ currentUser }) {
 
       setScores(scoresMap);
       setJokerByGw(jokerMap);
+      setCupJokerByGw(cupJokerMap);
       setChipByGw(chipMap);
       setSavedRounds(savedRoundsMap);
     } catch (err) {
@@ -226,6 +233,11 @@ function UserMatches({ currentUser }) {
       [gameweek]:
         value === "maximum_joker" ? [] : value === "double_jokers" ? [] : "",
     }));
+
+    setCupJokerByGw((prev) => ({
+      ...prev,
+      [gameweek]: "",
+    }));
   }
 
   function handleSelectJoker(gameweek, fixtureId) {
@@ -264,10 +276,17 @@ function UserMatches({ currentUser }) {
       }
 
       return {
-  ...prev,
-  [gameweek]: current === fixtureId ? "" : fixtureId,
-};
+        ...prev,
+        [gameweek]: current === fixtureId ? "" : fixtureId,
+      };
     });
+  }
+
+  function handleSelectCupJoker(gameweek, fixtureId) {
+    setCupJokerByGw((prev) => ({
+      ...prev,
+      [gameweek]: prev[gameweek] === fixtureId ? "" : fixtureId,
+    }));
   }
 
   const fixturesByGameweek = useMemo(() => {
@@ -297,6 +316,11 @@ function UserMatches({ currentUser }) {
       (fixture) => fixture.status !== "finished" && !fixture.isLocked
     );
   }, [visibleFixtures]);
+
+  const selectedChip = chipByGw[selectedRound] || "none";
+
+  const needsMainCupJoker =
+    selectedChip === "double_jokers" || selectedChip === "maximum_joker";
 
   const usedSpecialChip = useMemo(() => {
     const used = Object.entries(chipByGw).find(
@@ -350,7 +374,20 @@ function UserMatches({ currentUser }) {
     return visibleOpenFixtures.some((fixture) => fixture.id === jokerValue);
   }, [visibleOpenFixtures, jokerByGw, chipByGw, selectedRound]);
 
-  const canSaveAll = allOpenMatchesCompleted && selectedRoundHasJoker;
+  const selectedRoundHasCupJoker = useMemo(() => {
+    if (!needsMainCupJoker) return true;
+
+    if (visibleOpenFixtures.length === 0 || !selectedRound) return false;
+
+    const cupJokerValue = cupJokerByGw[selectedRound];
+
+    if (!cupJokerValue) return false;
+
+    return visibleOpenFixtures.some((fixture) => fixture.id === cupJokerValue);
+  }, [visibleOpenFixtures, cupJokerByGw, selectedRound, needsMainCupJoker]);
+
+  const canSaveAll =
+    allOpenMatchesCompleted && selectedRoundHasJoker && selectedRoundHasCupJoker;
 
   async function handleSaveAllPredictions() {
     if (!selectedRound) {
@@ -359,7 +396,11 @@ function UserMatches({ currentUser }) {
     }
 
     if (!canSaveAll) {
-      alert("Complete all unlocked match predictions and choose the required joker/chip.");
+      alert(
+        needsMainCupJoker
+          ? "Complete all unlocked match predictions, choose the required joker/chip, and choose your Main Cup Joker."
+          : "Complete all unlocked match predictions and choose the required joker/chip."
+      );
       return;
     }
 
@@ -386,11 +427,20 @@ function UserMatches({ currentUser }) {
           isJoker = jokerValue === fixture.id;
         }
 
+        let isCupJoker = false;
+
+        if (selectedChip === "double_jokers" || selectedChip === "maximum_joker") {
+          isCupJoker = cupJokerByGw[fixture.gameweek] === fixture.id;
+        } else {
+          isCupJoker = isJoker;
+        }
+
         return {
           fixtureId: fixture.id,
           predictedScoreA: Number(score.scoreA),
           predictedScoreB: Number(score.scoreB),
           isJoker,
+          isCupJoker,
         };
       });
 
@@ -507,6 +557,38 @@ function UserMatches({ currentUser }) {
               </select>
             </div>
 
+            {needsMainCupJoker && (
+              <div className="round-filter-card" style={{ marginTop: "16px" }}>
+                <div>
+                  <h3>Main Cup Joker</h3>
+                  <p>
+                    Choose the main joker game that will count in Cup H2H.
+                    Chips do not count in the Cup.
+                  </p>
+                </div>
+
+                <select
+                  className="round-filter-select"
+                  value={cupJokerByGw[selectedRound] || ""}
+                  onChange={(e) =>
+                    setCupJokerByGw((prev) => ({
+                      ...prev,
+                      [selectedRound]: e.target.value,
+                    }))
+                  }
+                  disabled={!selectedRound}
+                >
+                  <option value="">Choose Main Cup Joker</option>
+
+                  {visibleOpenFixtures.map((fixture) => (
+                    <option key={fixture.id} value={fixture.id}>
+                      {fixture.teamA} vs {fixture.teamB}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="predict-board">
               <div className="predict-date">{selectedRound || "Round"}</div>
 
@@ -613,18 +695,20 @@ function UserMatches({ currentUser }) {
 
             <div className="save-all-wrap">
               <button
-  className={`save-all-btn ${
-    savedRounds[selectedRound] ? "edit-predictions-btn" : "save-predictions-btn"
-  }`}
-  disabled={!selectedRound || !canSaveAll || saving}
-  onClick={handleSaveAllPredictions}
->
-  {saving
-    ? "Saving..."
-    : savedRounds[selectedRound]
-    ? "Edit Predictions"
-    : "Save Predictions"}
-</button>
+                className={`save-all-btn ${
+                  savedRounds[selectedRound]
+                    ? "edit-predictions-btn"
+                    : "save-predictions-btn"
+                }`}
+                disabled={!selectedRound || !canSaveAll || saving}
+                onClick={handleSaveAllPredictions}
+              >
+                {saving
+                  ? "Saving..."
+                  : savedRounds[selectedRound]
+                  ? "Edit Predictions"
+                  : "Save Predictions"}
+              </button>
 
               {!selectedRound ? (
                 <p className="save-helper-text">
@@ -632,8 +716,9 @@ function UserMatches({ currentUser }) {
                 </p>
               ) : !canSaveAll ? (
                 <p className="save-helper-text">
-                  Complete all unlocked games in {selectedRound} and choose the
-                  required joker/chip.
+                  {needsMainCupJoker
+                    ? `Complete all unlocked games in ${selectedRound}, choose the required joker/chip, and choose your Main Cup Joker.`
+                    : `Complete all unlocked games in ${selectedRound} and choose the required joker/chip.`}
                 </p>
               ) : null}
             </div>
