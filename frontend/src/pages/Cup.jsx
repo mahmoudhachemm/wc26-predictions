@@ -12,6 +12,7 @@ function Cup({ currentUser }) {
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [closedGroups, setClosedGroups] = useState({});
 
   function cleanId(value) {
     if (!value) return "";
@@ -23,6 +24,13 @@ function Cup({ currentUser }) {
 
   function getCurrentUserId() {
     return cleanId(currentUser?._id || currentUser?.id);
+  }
+
+  function toggleGroup(groupName) {
+    setClosedGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
   }
 
   async function loadCup() {
@@ -94,10 +102,8 @@ function Cup({ currentUser }) {
 
   function getWinnerLabel(match) {
     if (!match.winnerId) return "";
-
     if (match.winnerId === match.userAId) return match.userAName;
     if (match.winnerId === match.userBId) return match.userBName;
-
     return match.winnerName || "";
   }
 
@@ -123,153 +129,191 @@ function Cup({ currentUser }) {
             <p>Groups, H2H games, standings, and qualification path.</p>
           </div>
 
-          <button className="admin-black-btn" onClick={handleBack}>
+          <button className="admin-logout-btn" onClick={handleBack}>
             Back
           </button>
         </div>
 
         {loading ? (
-          <div className="empty-card">
+          <div style={styles.emptyCard}>
             <h3>Loading cup...</h3>
           </div>
         ) : groups.length === 0 ? (
-          <div className="empty-card">
+          <div style={styles.emptyCard}>
             <h3>No cup groups yet</h3>
             <p>Admin must generate the 12 groups first.</p>
           </div>
         ) : (
-          <div className="cup-grid">
+          <div style={styles.groupsWrapper}>
             {groups.map((group) => {
               const rows = getStandingsRows(group.name);
               const groupUsers = group.users || [];
               const groupMatches = groupedMatches[group.name] || {};
+              const isClosed = !!closedGroups[group.name];
 
               return (
-                <div className="cup-group-card" key={group.id || group._id || group.name}>
-                  <div className="cup-card-header">
-                    <div>
-                      <p className="cup-label">WC26 Cup</p>
-                      <h2>{group.name}</h2>
+                <div key={group._id || group.name} style={styles.groupCard}>
+                  <button
+                    type="button"
+                    style={styles.groupHeader}
+                    onClick={() => toggleGroup(group.name)}
+                  >
+                    <div style={styles.groupHeaderLeft}>
+                      <span style={styles.groupIcon}>🏆</span>
+                      <span style={styles.groupTitle}>{group.name}</span>
                     </div>
 
-                    <div className="cup-count">
-                      {groupUsers.length}
-                      <span>users</span>
+                    <div style={styles.groupHeaderRight}>
+                      <span style={styles.groupCount}>{groupUsers.length}</span>
+                      <span
+                        style={{
+                          ...styles.arrow,
+                          transform: isClosed ? "rotate(-90deg)" : "rotate(0deg)",
+                        }}
+                      >
+                        ▾
+                      </span>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="cup-users">
-                    {groupUsers.map((user, index) => {
-                      const id = cleanId(user._id || user.id);
-                      const isMe = id === getCurrentUserId();
+                  {!isClosed && (
+                    <div style={styles.groupBody}>
+                      <div style={styles.section}>
+                        <div style={styles.sectionTitle}>Users</div>
 
-                      return (
-                        <div
-                          className={`cup-user-row ${isMe ? "cup-user-me" : ""}`}
-                          key={id || index}
-                        >
-                          <span className="cup-user-number">{index + 1}</span>
-                          <span className="cup-user-name">{getUserName(user)}</span>
-                          {isMe && <span className="you-badge">You</span>}
+                        <div style={styles.userList}>
+                          {groupUsers.map((user, index) => {
+                            const id = cleanId(user._id || user.id);
+                            const isMe = id === getCurrentUserId();
+
+                            return (
+                              <div key={id || index} style={styles.userRow}>
+                                <span style={styles.userNumber}>{index + 1}</span>
+                                <span style={styles.userName}>{getUserName(user)}</span>
+                                {isMe && <span style={styles.youBadge}>You</span>}
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="cup-section-title">Group Standings</div>
-
-                  {rows.length === 0 ? (
-                    <div className="mini-empty">No standings yet.</div>
-                  ) : (
-                    <div className="cup-standings">
-                      <div className="cup-standings-head">
-                        <span>Pos</span>
-                        <span>User</span>
-                        <span>GP</span>
-                        <span>GD</span>
-                        <span>PF</span>
                       </div>
 
-                      {rows.map((row) => (
-                        <div
-                          className={`cup-standings-row ${
-                            row.position <= 2
-                              ? "qualified-row"
-                              : row.position === 3
-                              ? "third-row"
-                              : ""
-                          }`}
-                          key={row.userId}
-                        >
-                          <span>{row.position}</span>
-                          <span>{row.userName}</span>
-                          <span>{row.groupPoints}</span>
-                          <span>{row.cupPointsDifference}</span>
-                          <span>{row.cupPointsFor}</span>
-                        </div>
-                      ))}
+                      <div style={styles.section}>
+                        <div style={styles.sectionTitle}>Group Standings</div>
+
+                        {rows.length === 0 ? (
+                          <p style={styles.mutedText}>No standings yet.</p>
+                        ) : (
+                          <div style={styles.tableWrap}>
+                            <table style={styles.table}>
+                              <thead>
+                                <tr>
+                                  <th style={styles.th}>Pos</th>
+                                  <th style={styles.thLeft}>User</th>
+                                  <th style={styles.th}>GP</th>
+                                  <th style={styles.th}>GD</th>
+                                  <th style={styles.th}>PF</th>
+                                </tr>
+                              </thead>
+
+                              <tbody>
+                                {rows.map((row) => {
+                                  const isMe = row.userId === getCurrentUserId();
+
+                                  return (
+                                    <tr
+                                      key={row.userId}
+                                      style={isMe ? styles.myTableRow : styles.tableRow}
+                                    >
+                                      <td style={styles.tdCenter}>{row.position}</td>
+                                      <td style={styles.tdName}>
+                                        {row.userName}
+                                        {isMe && <span style={styles.youSmall}> You</span>}
+                                      </td>
+                                      <td style={styles.tdCenter}>{row.groupPoints}</td>
+                                      <td style={styles.tdCenter}>
+                                        {row.cupPointsDifference}
+                                      </td>
+                                      <td style={styles.tdCenter}>{row.cupPointsFor}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={styles.section}>
+                        <div style={styles.sectionTitle}>Group Games</div>
+
+                        {GROUP_ROUNDS.map((round) => {
+                          const roundMatches = groupMatches[round] || [];
+
+                          return (
+                            <div key={round} style={styles.roundBox}>
+                              <div style={styles.roundTitle}>{round}</div>
+
+                              {roundMatches.length === 0 ? (
+                                <p style={styles.mutedText}>No games yet.</p>
+                              ) : (
+                                <div style={styles.matchList}>
+                                  {roundMatches.map((match) => {
+                                    const winnerLabel = getWinnerLabel(match);
+
+                                    return (
+                                      <div key={match.id || match._id} style={styles.matchRow}>
+                                        <div style={styles.matchMain}>
+                                          <div style={styles.playerSide}>
+                                            <span style={styles.playerName}>
+                                              {match.userAName || "TBD"}
+                                            </span>
+                                            <span style={styles.scoreBox}>
+                                              {match.cupScoreA || 0}
+                                            </span>
+                                          </div>
+
+                                          <span style={styles.vsText}>vs</span>
+
+                                          <div style={styles.playerSide}>
+                                            <span style={styles.scoreBox}>
+                                              {match.cupScoreB || 0}
+                                            </span>
+                                            <span style={styles.playerName}>
+                                              {match.userBName || "TBD"}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div style={styles.matchMeta}>
+                                          <span
+                                            style={
+                                              match.isCompleted
+                                                ? styles.finishedBadge
+                                                : match.needsAdminDecision
+                                                ? styles.decisionBadge
+                                                : styles.pendingBadge
+                                            }
+                                          >
+                                            {getMatchStatus(match)}
+                                          </span>
+
+                                          {winnerLabel && (
+                                            <span style={styles.winnerText}>
+                                              Winner: {winnerLabel}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
-
-                  <div className="cup-section-title">Group Games</div>
-
-                  <div className="cup-rounds">
-                    {GROUP_ROUNDS.map((round) => {
-                      const roundMatches = groupMatches[round] || [];
-
-                      return (
-                        <div className="cup-round-block" key={round}>
-                          <div className="cup-round-title">{round}</div>
-
-                          {roundMatches.length === 0 ? (
-                            <div className="mini-empty">No games yet.</div>
-                          ) : (
-                            roundMatches.map((match) => {
-                              const winnerLabel = getWinnerLabel(match);
-
-                              return (
-                                <div
-                                  className="cup-match-card"
-                                  key={match.id || match._id || match.matchNumber}
-                                >
-                                  <div className="cup-match-users">
-                                    <div
-                                      className={`cup-match-user ${
-                                        match.winnerId === match.userAId
-                                          ? "cup-match-winner"
-                                          : ""
-                                      }`}
-                                    >
-                                      <span>{match.userAName || "TBD"}</span>
-                                      <strong>{match.cupScoreA || 0}</strong>
-                                    </div>
-
-                                    <div className="cup-vs">vs</div>
-
-                                    <div
-                                      className={`cup-match-user ${
-                                        match.winnerId === match.userBId
-                                          ? "cup-match-winner"
-                                          : ""
-                                      }`}
-                                    >
-                                      <span>{match.userBName || "TBD"}</span>
-                                      <strong>{match.cupScoreB || 0}</strong>
-                                    </div>
-                                  </div>
-
-                                  <div className="cup-match-footer">
-                                    <span>{getMatchStatus(match)}</span>
-                                    {winnerLabel && <span>Winner: {winnerLabel}</span>}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
               );
             })}
@@ -279,5 +323,335 @@ function Cup({ currentUser }) {
     </div>
   );
 }
+
+const styles = {
+  groupsWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    paddingBottom: "30px",
+  },
+
+  groupCard: {
+    borderRadius: "22px",
+    overflow: "hidden",
+    background: "rgba(255, 255, 255, 0.94)",
+    boxShadow: "0 14px 35px rgba(0, 0, 0, 0.14)",
+    border: "1px solid rgba(255, 255, 255, 0.55)",
+  },
+
+  groupHeader: {
+    width: "100%",
+    border: "none",
+    outline: "none",
+    padding: "17px 18px",
+    background:
+      "linear-gradient(110deg, #eaffdf 0%, #fff0f0 42%, #c8d7ff 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    cursor: "pointer",
+    userSelect: "none",
+  },
+
+  groupHeaderLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  groupIcon: {
+    fontSize: "18px",
+  },
+
+  groupTitle: {
+    fontSize: "18px",
+    fontWeight: "900",
+    color: "#111827",
+  },
+
+  groupHeaderRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  groupCount: {
+    minWidth: "25px",
+    height: "25px",
+    padding: "0 8px",
+    borderRadius: "999px",
+    background: "rgba(0, 0, 0, 0.38)",
+    color: "#ffffff",
+    fontSize: "13px",
+    fontWeight: "900",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  arrow: {
+    display: "inline-block",
+    color: "#8b8b8b",
+    fontSize: "20px",
+    fontWeight: "900",
+    transition: "transform 0.2s ease",
+  },
+
+  groupBody: {
+    padding: "16px",
+  },
+
+  section: {
+    marginBottom: "18px",
+  },
+
+  sectionTitle: {
+    fontSize: "15px",
+    fontWeight: "900",
+    color: "#111827",
+    marginBottom: "10px",
+  },
+
+  userList: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: "8px",
+  },
+
+  userRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "9px",
+    background: "#f8fafc",
+    borderRadius: "13px",
+    padding: "10px 11px",
+    border: "1px solid #edf2f7",
+  },
+
+  userNumber: {
+    width: "25px",
+    height: "25px",
+    borderRadius: "50%",
+    background: "#111827",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontWeight: "900",
+    flexShrink: 0,
+  },
+
+  userName: {
+    fontSize: "14px",
+    fontWeight: "800",
+    color: "#111827",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  youBadge: {
+    marginLeft: "auto",
+    background: "#16a34a",
+    color: "#ffffff",
+    borderRadius: "999px",
+    padding: "3px 8px",
+    fontSize: "11px",
+    fontWeight: "900",
+  },
+
+  youSmall: {
+    color: "#16a34a",
+    fontWeight: "900",
+    fontSize: "12px",
+  },
+
+  tableWrap: {
+    overflowX: "auto",
+    borderRadius: "15px",
+    border: "1px solid #e5e7eb",
+  },
+
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    minWidth: "430px",
+    background: "#ffffff",
+  },
+
+  th: {
+    padding: "10px 8px",
+    textAlign: "center",
+    fontSize: "12px",
+    color: "#6b7280",
+    background: "#f9fafb",
+    fontWeight: "900",
+  },
+
+  thLeft: {
+    padding: "10px 8px",
+    textAlign: "left",
+    fontSize: "12px",
+    color: "#6b7280",
+    background: "#f9fafb",
+    fontWeight: "900",
+  },
+
+  tableRow: {
+    borderTop: "1px solid #edf2f7",
+  },
+
+  myTableRow: {
+    borderTop: "1px solid #edf2f7",
+    background: "#ecfdf5",
+  },
+
+  tdCenter: {
+    padding: "11px 8px",
+    textAlign: "center",
+    fontSize: "13px",
+    fontWeight: "800",
+    color: "#111827",
+  },
+
+  tdName: {
+    padding: "11px 8px",
+    textAlign: "left",
+    fontSize: "13px",
+    fontWeight: "900",
+    color: "#111827",
+    whiteSpace: "nowrap",
+  },
+
+  roundBox: {
+    background: "#f8fafc",
+    borderRadius: "16px",
+    padding: "12px",
+    marginBottom: "10px",
+    border: "1px solid #edf2f7",
+  },
+
+  roundTitle: {
+    fontSize: "14px",
+    fontWeight: "900",
+    color: "#111827",
+    marginBottom: "9px",
+  },
+
+  matchList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "9px",
+  },
+
+  matchRow: {
+    background: "#ffffff",
+    borderRadius: "14px",
+    padding: "11px",
+    border: "1px solid #e5e7eb",
+  },
+
+  matchMain: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+  },
+
+  playerSide: {
+    display: "flex",
+    alignItems: "center",
+    gap: "7px",
+    minWidth: 0,
+    flex: 1,
+  },
+
+  playerName: {
+    fontSize: "13px",
+    fontWeight: "900",
+    color: "#111827",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  scoreBox: {
+    minWidth: "28px",
+    height: "28px",
+    borderRadius: "9px",
+    background: "#111827",
+    color: "#ffffff",
+    fontSize: "13px",
+    fontWeight: "900",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  vsText: {
+    fontSize: "12px",
+    fontWeight: "900",
+    color: "#6b7280",
+    flexShrink: 0,
+  },
+
+  matchMeta: {
+    marginTop: "9px",
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "7px",
+  },
+
+  finishedBadge: {
+    background: "#dcfce7",
+    color: "#166534",
+    borderRadius: "999px",
+    padding: "4px 9px",
+    fontSize: "11px",
+    fontWeight: "900",
+  },
+
+  decisionBadge: {
+    background: "#fef3c7",
+    color: "#92400e",
+    borderRadius: "999px",
+    padding: "4px 9px",
+    fontSize: "11px",
+    fontWeight: "900",
+  },
+
+  pendingBadge: {
+    background: "#e5e7eb",
+    color: "#374151",
+    borderRadius: "999px",
+    padding: "4px 9px",
+    fontSize: "11px",
+    fontWeight: "900",
+  },
+
+  winnerText: {
+    fontSize: "12px",
+    fontWeight: "800",
+    color: "#111827",
+  },
+
+  mutedText: {
+    margin: 0,
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  emptyCard: {
+    background: "rgba(255, 255, 255, 0.94)",
+    borderRadius: "20px",
+    padding: "22px",
+    boxShadow: "0 14px 35px rgba(0, 0, 0, 0.14)",
+  },
+};
 
 export default Cup;

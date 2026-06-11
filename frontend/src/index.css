@@ -6988,3 +6988,60 @@ body,
     font-size: 13px;
   }
 }
+
+.cup-group-header {
+  width: 100%;
+  background: linear-gradient(110deg, #eaffdf 0%, #fff0f0 42%, #c8d7ff 100%);
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.cup-group-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cup-group-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cup-group-count {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cup-arrow {
+  color: #8b8b8b;
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.cup-arrow.closed {
+  transform: rotate(-90deg);
+}
+
+.cup-group-body {
+  margin-top: 10px;
+}
