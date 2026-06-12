@@ -43,18 +43,23 @@ function Chips({ currentUser }) {
     });
   }, [chipsData]);
 
+  function getUsedChip(user, chip) {
+    return user.usedChips?.find((item) => item.chip === chip);
+  }
+
   function renderChipStatus(user, chip) {
-    const usedChip = user.usedChips.find((item) => item.chip === chip);
+    const usedChip = getUsedChip(user, chip);
 
     if (usedChip) {
       return (
-        <span className="joker-badge">
-          Used {usedChip.gameweek ? `- ${usedChip.gameweek}` : ""}
-        </span>
+        <div className="chip-used">
+          <strong>Used</strong>
+          <span>{usedChip.gameweek}</span>
+        </div>
       );
     }
 
-    return <span className="open-pill">Available</span>;
+    return <div className="chip-available">Available</div>;
   }
 
   return (
@@ -70,7 +75,7 @@ function Chips({ currentUser }) {
           </div>
 
           <button
-            className="admin-black-btn"
+            className="logout-btn"
             onClick={() => navigate(isAdmin ? "/admin" : "/user")}
           >
             Back
@@ -78,55 +83,57 @@ function Chips({ currentUser }) {
         </div>
 
         {loading ? (
-          <div className="admin-glass-card">
-            <div className="empty-state">
-              <h3>Loading chips...</h3>
-            </div>
+          <div className="admin-card">
+            <h3>Loading chips...</h3>
           </div>
         ) : sortedUsers.length === 0 ? (
-          <div className="admin-glass-card">
-            <div className="empty-state">
-              <h3>No users found</h3>
-              <p>No chip data is available yet.</p>
-            </div>
+          <div className="admin-card">
+            <h3>No users found</h3>
+            <p>No chip data is available yet.</p>
           </div>
         ) : (
-          <div className="predictions-table-card">
-            <table className="predictions-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Used</th>
-                  <th>Remaining</th>
-                  <th>Triple</th>
-                  <th>Double</th>
-                  <th>Maximum</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {sortedUsers.map((user) => (
-                  <tr key={user.userId}>
-                    <td>
-                      {user.fullName}
-                      {user.isCurrentUser && <span className="you-badge"> You</span>}
-                    </td>
-
-                    <td>{user.usedCount}/3</td>
-                    <td>{user.remainingCount}/3</td>
-
-                    {CHIP_ORDER.map((chip) => (
-                      <td key={chip}>
-                        <div>
-                          <strong>{CHIP_LABELS[chip]}</strong>
-                        </div>
-                        {renderChipStatus(user, chip)}
-                      </td>
-                    ))}
+          <div className="predictions-card">
+            <div className="predictions-table-wrap">
+              <table className="predictions-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Used</th>
+                    <th>Remaining</th>
+                    <th>Triple</th>
+                    <th>Double</th>
+                    <th>Maximum</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody>
+                  {sortedUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td>
+                        <strong>{user.fullName}</strong>
+                        {user.isCurrentUser && (
+                          <span className="you-badge"> You</span>
+                        )}
+                      </td>
+
+                      <td>{user.usedCount}/3</td>
+                      <td>{user.remainingCount}/3</td>
+
+                      {CHIP_ORDER.map((chip) => (
+                        <td key={chip}>
+                          <div className="chip-cell">
+                            <span className="chip-name">
+                              {CHIP_LABELS[chip]}
+                            </span>
+                            {renderChipStatus(user, chip)}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
