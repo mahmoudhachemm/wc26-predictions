@@ -32,8 +32,8 @@ function Chips({ currentUser }) {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState("all");
   const [selectedChip, setSelectedChip] = useState("all");
-  const [search, setSearch] = useState("");
   const [error, setError] = useState("");
 
   async function loadChips() {
@@ -64,16 +64,9 @@ function Chips({ currentUser }) {
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      const searchValue = search.trim().toLowerCase();
-
-      const fullName = user.fullName || "";
-      const email = user.email || "";
-
-      const matchesSearch =
-        fullName.toLowerCase().includes(searchValue) ||
-        email.toLowerCase().includes(searchValue);
-
-      if (!matchesSearch) return false;
+      if (selectedUserId !== "all" && user.userId !== selectedUserId) {
+        return false;
+      }
 
       if (selectedChip === "all") return true;
       if (selectedChip === "used") return user.usedCount > 0;
@@ -81,11 +74,11 @@ function Chips({ currentUser }) {
 
       return user.chips?.[selectedChip]?.used;
     });
-  }, [users, search, selectedChip]);
+  }, [users, selectedUserId, selectedChip]);
 
   const totalUsers = users.length;
   const usersUsedAnyChip = users.filter((user) => user.usedCount > 0).length;
-  const usersWithAllChips = users.filter((user) => user.remainingCount === 3).length;
+  const usersUsedNoChips = users.filter((user) => user.usedCount === 0).length;
 
   function goBack() {
     if (currentUser?.role === "admin") {
@@ -132,27 +125,33 @@ function Chips({ currentUser }) {
 
           <div className="chips-stat-card">
             <span>Used No Chips</span>
-            <strong>{usersWithAllChips}</strong>
+            <strong>{usersUsedNoChips}</strong>
           </div>
         </div>
 
         <div className="chips-filter-card">
           <div className="chips-filter-group">
-            <label>Search User</label>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or email..."
-            />
+            <label>Choose User</label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+            >
+              <option value="all">All Users</option>
+              {users.map((user) => (
+                <option key={user.userId} value={user.userId}>
+                  {user.fullName}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="chips-filter-group">
-            <label>Filter</label>
+            <label>Filter Chips</label>
             <select
               value={selectedChip}
               onChange={(e) => setSelectedChip(e.target.value)}
             >
-              <option value="all">All Users</option>
+              <option value="all">All Chips</option>
               <option value="used">Used Any Chip</option>
               <option value="remaining">Still Has Remaining Chips</option>
               <option value="triple_joker">Triple Joker Used</option>
@@ -176,8 +175,9 @@ function Chips({ currentUser }) {
             <h3>Could not load users</h3>
             <p>{error}</p>
             <p>
-              Make sure you replaced <strong>backend/src/routes/predictionRoutes.js</strong>,
-              committed, pushed, and redeployed Render.
+              Make sure you replaced{" "}
+              <strong>backend/src/routes/predictionRoutes.js</strong>, committed,
+              pushed, and redeployed Render.
             </p>
           </div>
         ) : filteredUsers.length === 0 ? (
@@ -185,7 +185,7 @@ function Chips({ currentUser }) {
             <h3>No users found</h3>
             <p>
               Users loaded: <strong>{users.length}</strong>. No user matches the
-              selected filter/search.
+              selected filters.
             </p>
           </div>
         ) : (
@@ -195,7 +195,6 @@ function Chips({ currentUser }) {
                 <div className="chips-user-top">
                   <div>
                     <h2>{user.fullName}</h2>
-                    <p>{user.email}</p>
                   </div>
 
                   <div className="chips-count-pill">

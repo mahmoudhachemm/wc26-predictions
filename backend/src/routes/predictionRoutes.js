@@ -166,7 +166,6 @@ function buildChipSummaryForUser(user, chipPredictions) {
   return {
     userId,
     fullName: user.fullName,
-    email: user.email,
     role: user.role,
     chips: chipStatus,
     usedChips,
@@ -179,7 +178,7 @@ function buildChipSummaryForUser(user, chipPredictions) {
 router.get("/mine", protect, async (req, res) => {
   try {
     const predictions = await Prediction.find({ user: req.user._id })
-      .populate("user", "fullName email role")
+      .populate("user", "fullName role")
       .populate("fixture");
 
     const fixtures = await Fixture.find({}).sort({ createdAt: 1 });
@@ -209,7 +208,7 @@ router.get("/all", protect, adminOnly, async (req, res) => {
     if (userId) filter.user = userId;
 
     const predictions = await Prediction.find(filter)
-      .populate("user", "fullName email role")
+      .populate("user", "fullName role")
       .populate("fixture");
 
     const fixtureFilter = {};
@@ -257,7 +256,7 @@ router.get("/public", protect, async (req, res) => {
     if (userId) predictionFilter.user = userId;
 
     const predictions = await Prediction.find(predictionFilter)
-      .populate("user", "fullName email role")
+      .populate("user", "fullName role")
       .populate("fixture");
 
     const normalizedPredictions = predictions.map(normalizePrediction);
@@ -276,14 +275,14 @@ router.get("/public", protect, async (req, res) => {
 
 router.get("/chips-summary", protect, async (req, res) => {
   try {
-    const users = await User.find({}).select("-password").sort({
+    const users = await User.find({}).select("fullName role").sort({
       fullName: 1,
     });
 
     const chipPredictions = await Prediction.find({
       specialChip: { $ne: "none" },
     })
-      .populate("user", "fullName email role")
+      .populate("user", "fullName role")
       .populate("fixture")
       .sort({ createdAt: 1 });
 
@@ -458,7 +457,7 @@ router.post("/save-round", protect, async (req, res) => {
       user: req.user._id,
       gameweek,
     })
-      .populate("user", "fullName email role")
+      .populate("user", "fullName role")
       .populate("fixture");
 
     const normalizedSavedPredictions = savedPredictions.map(normalizePrediction);
