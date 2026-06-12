@@ -282,13 +282,6 @@ function UserMatches({ currentUser }) {
     });
   }
 
-  function handleSelectCupJoker(gameweek, fixtureId) {
-    setCupJokerByGw((prev) => ({
-      ...prev,
-      [gameweek]: prev[gameweek] === fixtureId ? "" : fixtureId,
-    }));
-  }
-
   const fixturesByGameweek = useMemo(() => {
     return fixtures.reduce((groups, fixture) => {
       const key = fixture.gameweek || "No Round";
@@ -322,12 +315,15 @@ function UserMatches({ currentUser }) {
   const needsMainCupJoker =
     selectedChip === "double_jokers" || selectedChip === "maximum_joker";
 
-  const usedSpecialChip = useMemo(() => {
-    const used = Object.entries(chipByGw).find(
-      ([round, chip]) => chip && chip !== "none" && round !== selectedRound
+  const usedChipsInOtherRounds = useMemo(() => {
+    return new Set(
+      Object.entries(chipByGw)
+        .filter(
+          ([round, chip]) =>
+            chip && chip !== "none" && round !== selectedRound
+        )
+        .map(([, chip]) => chip)
     );
-
-    return used ? used[1] : "";
   }, [chipByGw, selectedRound]);
 
   const allOpenMatchesCompleted = useMemo(() => {
@@ -429,7 +425,10 @@ function UserMatches({ currentUser }) {
 
         let isCupJoker = false;
 
-        if (selectedChip === "double_jokers" || selectedChip === "maximum_joker") {
+        if (
+          selectedChip === "double_jokers" ||
+          selectedChip === "maximum_joker"
+        ) {
           isCupJoker = cupJokerByGw[fixture.gameweek] === fixture.id;
         } else {
           isCupJoker = isJoker;
@@ -531,9 +530,10 @@ function UserMatches({ currentUser }) {
               <div>
                 <h3>Prediction Chip</h3>
                 <p>
-                  Choose blank or use your one tournament chip.
-                  {usedSpecialChip && (
-                    <span> You already used a chip in another round.</span>
+                  Choose blank or use one of your chips. Each chip can be used
+                  once.
+                  {usedChipsInOtherRounds.size > 0 && (
+                    <span> Used chips are disabled.</span>
                   )}
                 </p>
               </div>
@@ -545,13 +545,25 @@ function UserMatches({ currentUser }) {
                 disabled={!selectedRound}
               >
                 <option value="none">No Chip</option>
-                <option value="triple_joker" disabled={Boolean(usedSpecialChip)}>
+
+                <option
+                  value="triple_joker"
+                  disabled={usedChipsInOtherRounds.has("triple_joker")}
+                >
                   Triple Joker
                 </option>
-                <option value="double_jokers" disabled={Boolean(usedSpecialChip)}>
+
+                <option
+                  value="double_jokers"
+                  disabled={usedChipsInOtherRounds.has("double_jokers")}
+                >
                   Double Joker
                 </option>
-                <option value="maximum_joker" disabled={Boolean(usedSpecialChip)}>
+
+                <option
+                  value="maximum_joker"
+                  disabled={usedChipsInOtherRounds.has("maximum_joker")}
+                >
                   Maximum Joker
                 </option>
               </select>
@@ -609,7 +621,8 @@ function UserMatches({ currentUser }) {
 
                 const isJokerSelected =
                   selectedChip === "double_jokers"
-                    ? Array.isArray(jokerValue) && jokerValue.includes(fixture.id)
+                    ? Array.isArray(jokerValue) &&
+                      jokerValue.includes(fixture.id)
                     : jokerValue === fixture.id;
 
                 return (
@@ -637,7 +650,11 @@ function UserMatches({ currentUser }) {
                           value={currentScore.scoreA}
                           disabled={isLocked}
                           onChange={(e) =>
-                            handleScoreChange(fixture.id, "scoreA", e.target.value)
+                            handleScoreChange(
+                              fixture.id,
+                              "scoreA",
+                              e.target.value
+                            )
                           }
                         />
 
@@ -651,7 +668,11 @@ function UserMatches({ currentUser }) {
                           value={currentScore.scoreB}
                           disabled={isLocked}
                           onChange={(e) =>
-                            handleScoreChange(fixture.id, "scoreB", e.target.value)
+                            handleScoreChange(
+                              fixture.id,
+                              "scoreB",
+                              e.target.value
+                            )
                           }
                         />
                       </div>

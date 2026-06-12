@@ -16,6 +16,7 @@ import MyPredictions from "./pages/MyPredictions";
 import PublicPredictions from "./pages/PublicPredictions";
 import Cup from "./pages/Cup";
 import AdminCup from "./pages/AdminCup";
+import Chips from "./pages/Chips";
 
 function getSavedUser() {
   try {
@@ -48,11 +49,7 @@ function App() {
         path="/login"
         element={
           currentUser ? (
-            currentUser.role === "admin" ? (
-              <Navigate to="/admin" replace />
-            ) : (
-              <Navigate to="/user" replace />
-            )
+            <Navigate to={currentUser.role === "admin" ? "/admin" : "/user"} replace />
           ) : (
             <Login setCurrentUser={setCurrentUser} />
           )
@@ -63,11 +60,7 @@ function App() {
         path="/signup"
         element={
           currentUser ? (
-            currentUser.role === "admin" ? (
-              <Navigate to="/admin" replace />
-            ) : (
-              <Navigate to="/user" replace />
-            )
+            <Navigate to={currentUser.role === "admin" ? "/admin" : "/user"} replace />
           ) : (
             <Signup setCurrentUser={setCurrentUser} />
           )
@@ -77,7 +70,7 @@ function App() {
       <Route
         path="/user"
         element={
-          currentUser?.role === "user" ? (
+          currentUser ? (
             <UserHome currentUser={currentUser} setCurrentUser={setCurrentUser} />
           ) : (
             <Navigate to="/login" replace />
@@ -90,6 +83,60 @@ function App() {
         element={
           currentUser?.role === "admin" ? (
             <AdminHome currentUser={currentUser} setCurrentUser={setCurrentUser} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/user/matches"
+        element={
+          currentUser ? (
+            <UserMatches currentUser={currentUser} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/leaderboard"
+        element={currentUser ? <Leaderboard /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/user/predictions"
+        element={
+          currentUser ? (
+            <MyPredictions currentUser={currentUser} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/user/all-predictions"
+        element={
+          currentUser ? (
+            <PublicPredictions currentUser={currentUser} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/cup"
+        element={currentUser ? <Cup currentUser={currentUser} /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/chips"
+        element={
+          currentUser ? (
+            <Chips currentUser={currentUser} />
           ) : (
             <Navigate to="/login" replace />
           )
@@ -141,70 +188,17 @@ function App() {
       />
 
       <Route
-        path="/user/matches"
+        path="/admin/cup"
         element={
-          currentUser?.role === "user" ? (
-            <UserMatches currentUser={currentUser} />
+          currentUser?.role === "admin" ? (
+            <AdminCup />
           ) : (
             <Navigate to="/login" replace />
           )
         }
       />
 
-      <Route
-        path="/user/predictions"
-        element={
-          currentUser?.role === "user" ? (
-            <MyPredictions currentUser={currentUser} />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-
-      <Route
-        path="/user/all-predictions"
-        element={
-          currentUser?.role === "user" ? (
-            <PublicPredictions currentUser={currentUser} />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-
-      <Route
-        path="/leaderboard"
-        element={
-          currentUser ? (
-            <Leaderboard currentUser={currentUser} />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-
-      <Route
-  path="/cup"
-  element={
-    currentUser ? (
-      <Cup currentUser={currentUser} />
-    ) : (
-      <Navigate to="/login" replace />
-    )
-  }
-/>
-
-<Route
-  path="/admin/cup"
-  element={
-    currentUser && currentUser.role === "admin" ? (
-      <AdminCup currentUser={currentUser} />
-    ) : (
-      <Navigate to="/login" replace />
-    )
-  }
-/>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

@@ -1,6 +1,7 @@
 import express from "express";
 import Fixture from "../models/Fixture.js";
 import Prediction from "../models/Prediction.js";
+import User from "../models/User.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -11,6 +12,12 @@ const ALLOWED_CHIPS = [
   "double_jokers",
   "maximum_joker",
 ];
+
+const CHIP_LABELS = {
+  triple_joker: "Triple Joker",
+  double_jokers: "Double Joker",
+  maximum_joker: "Maximum Joker",
+};
 
 function isValidScore(value) {
   return Number.isInteger(value) && value >= 0 && value <= 20;
@@ -65,6 +72,31 @@ function sortPredictionsByFixtureOrder(predictions, fixtures) {
   });
 }
 
+function inferChipFromRoundPredictions(roundPredictions) {
+  const explicitChipPrediction = roundPredictions.find(
+    (prediction) =>
+      prediction.specialChip && prediction.specialChip !== "none"
+  );
+
+  if (explicitChipPrediction) {
+    return explicitChipPrediction.specialChip;
+  }
+
+  const jokerCount = roundPredictions.filter(
+    (prediction) => prediction.isJoker
+  ).length;
+
+  const hasAutoMax = roundPredictions.some(
+    (prediction) => prediction.isAutoMaxJoker
+  );
+
+  if (hasAutoMax) return "maximum_joker";
+
+  if (jokerCount === 2) return "double_jokers";
+
+  return "none";
+}
+
 router.get("/mine", protect, async (req, res) => {
   const predictions = await Prediction.find({ user: req.user._id })
     .populate("user", "fullName email role")
@@ -80,6 +112,88 @@ router.get("/mine", protect, async (req, res) => {
   );
 
   return res.json(orderedPredictions);
+});
+
+router.get("/chips", protect, async (req, res) => {
+  const users = await User.find({ role: "user" }).sort({ fullName: 1 });
+
+  const allPredictions = await Prediction.find({})
+    .populate("user", "fullName email role")
+    .populate("fixture")
+    .sort({ gameweek: 1, createdAt: 1 });
+
+  const predictionsByUserAndRound = new Map();
+
+  allPredictions.forEach((prediction) => {
+    if (!prediction.user || prediction.user.role !== "user") return;
+    if (!prediction.gameweek) return;
+
+    const userId = prediction.user._id.toString();
+    const key = `${userId}___${prediction.gameweek}`;
+
+    if (!predictionsByUserAndRound.has(key)) {
+      predictionsByUserAndRound.set(key, {
+        userId,
+        gameweek: prediction.gameweek,
+        predictions: [],
+      });
+    }
+
+    predictionsByUserAndRound.get(key).predictions.push(prediction);
+  });
+
+  const usedByUser = new Map();
+
+  predictionsByUserAndRound.forEach((group) => {
+    const chip = inferChipFromRoundPredictions(group.predictions);
+
+    if (!chip || chip === "none") return;
+
+    if (!usedByUser.has(group.userId)) {
+      usedByUser.set(group.userId, new Map());
+    }
+
+    const userChipMap = usedByUser.get(group.userId);
+
+    if (!userChipMap.has(chip)) {
+      userChipMap.set(chip, {
+        chip,
+        label: CHIP_LABELS[chip] || chip,
+        gameweek: group.gameweek,
+      });
+    }
+  });
+
+  const allChips = ["triple_joker", "double_jokers", "maximum_joker"];
+
+  const data = users.map((user) => {
+    const userId = user._id.toString();
+    const userChipMap = usedByUser.get(userId) || new Map();
+
+    const usedChips = allChips
+      .filter((chip) => userChipMap.has(chip))
+      .map((chip) => userChipMap.get(chip));
+
+    const remainingChips = allChips
+      .filter((chip) => !userChipMap.has(chip))
+      .map((chip) => ({
+        chip,
+        label: CHIP_LABELS[chip],
+      }));
+
+    return {
+      userId,
+      fullName: user.fullName,
+      email: user.email,
+      isCurrentUser: userId === req.user._id.toString(),
+      usedChips,
+      remainingChips,
+      usedCount: usedChips.length,
+      remainingCount: remainingChips.length,
+    };
+  });
+
+  return res.json(data);
 });
 
 router.get("/all", protect, adminOnly, async (req, res) => {
@@ -190,7 +304,6 @@ router.post("/save-round", protect, async (req, res) => {
   );
 
   const uniqueFixtureIds = new Set();
-
   let jokerCount = 0;
   let cupJokerCount = 0;
 
@@ -234,11 +347,23 @@ router.post("/save-round", protect, async (req, res) => {
         message: "Double Jokers chip requires exactly 2 jokers in this round",
       });
     }
+
+    if (cupJokerCount !== 1) {
+      return res.status(400).json({
+        message: "Choose exactly one Main Cup Joker for this round",
+      });
+    }
   } else if (specialChip === "maximum_joker") {
     if (jokerCount !== 0) {
       return res.status(400).json({
         message:
           "Maximum Joker chip chooses the best game automatically, do not select a joker",
+      });
+    }
+
+    if (cupJokerCount !== 1) {
+      return res.status(400).json({
+        message: "Choose exactly one Main Cup Joker for this round",
       });
     }
   } else {
@@ -249,28 +374,28 @@ router.post("/save-round", protect, async (req, res) => {
     }
   }
 
-  if (cupJokerCount !== 1) {
-    return res.status(400).json({
-      message: "Choose exactly one Main Cup Joker for this round",
-    });
-  }
-
   if (specialChip !== "none") {
-    const usedAnyChipInAnotherRound = await Prediction.findOne({
+    const usedSameChipInAnotherRound = await Prediction.findOne({
       user: req.user._id,
-      specialChip: { $ne: "none" },
+      specialChip,
       gameweek: { $ne: gameweek },
     });
 
-    if (usedAnyChipInAnotherRound) {
+    if (usedSameChipInAnotherRound) {
       return res.status(400).json({
-        message: "You can use only one special chip in the whole tournament",
+        message: "You already used this chip in another round",
       });
     }
   }
 
   const operations = predictions.map((prediction) => {
     const fixture = fixtureMap.get(prediction.fixtureId);
+
+    let isCupJoker = Boolean(prediction.isCupJoker);
+
+    if (specialChip === "none" || specialChip === "triple_joker") {
+      isCupJoker = Boolean(prediction.isJoker);
+    }
 
     return {
       updateOne: {
@@ -288,7 +413,7 @@ router.post("/save-round", protect, async (req, res) => {
             predictedScoreA: Number(prediction.predictedScoreA),
             predictedScoreB: Number(prediction.predictedScoreB),
             isJoker: Boolean(prediction.isJoker),
-            isCupJoker: Boolean(prediction.isCupJoker),
+            isCupJoker,
             specialChip,
             isAutoMaxJoker: false,
             fixtureStatus: fixture.status,

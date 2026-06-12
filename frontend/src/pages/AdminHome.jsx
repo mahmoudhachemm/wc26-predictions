@@ -84,6 +84,12 @@ function AdminHome({ currentUser, setCurrentUser }) {
   <h2>Cup Manager</h2>
   <p>Generate random groups and group-stage games.</p>
 </button>
+
+<div className="admin-menu-card" onClick={() => navigate("/chips")}>
+  <span>07</span>
+  <h2>Chips</h2>
+  <p>See who used chips and what remains.</p>
+</div>
         </div>
       </div>
     </div>

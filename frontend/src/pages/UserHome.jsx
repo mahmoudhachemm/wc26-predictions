@@ -72,6 +72,12 @@ function UserHome({ currentUser, setCurrentUser }) {
             <h2>Cup</h2>
             <p>View groups, H2H games, and standings.</p>
           </button>
+
+          <div className="admin-menu-card" onClick={() => navigate("/chips")}>
+  <span>06</span>
+  <h2>Chips</h2>
+  <p>See used and remaining chips.</p>
+</div>
         </div>
       </div>
     </div>
