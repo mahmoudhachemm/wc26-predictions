@@ -1,31 +1,24 @@
-const API_URL = import.meta.env.VITE_API_URL || "/api";
+const API_BASE_URL = "http://192.168.1.13:5000/api";
 
-export default API_URL;
-
-export async function apiRequest(path, options = {}) {
-  const currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+export async function apiRequest(endpoint, options = {}) {
+  const savedUser = localStorage.getItem("currentUser");
+  const currentUser = savedUser ? JSON.parse(savedUser) : null;
 
   const headers = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...(options.headers || {}),
   };
 
   if (currentUser?.token) {
     headers.Authorization = `Bearer ${currentUser.token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
   });
 
-  let data = null;
-
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
+  const data = await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new Error(data?.message || "Something went wrong");
