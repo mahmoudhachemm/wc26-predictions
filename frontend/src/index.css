@@ -7045,3 +7045,346 @@ body,
 .cup-group-body {
   margin-top: 10px;
 }
+
+.chips-page {
+  padding-bottom: 50px;
+}
+
+.chips-hero {
+  width: 100%;
+  min-height: 170px;
+  padding: 34px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  backdrop-filter: blur(14px);
+  margin-bottom: 22px;
+}
+
+.chips-hero h1 {
+  margin: 6px 0 8px;
+  font-size: clamp(46px, 6vw, 78px);
+  line-height: 0.92;
+  color: #ffffff;
+  letter-spacing: -3px;
+}
+
+.chips-hero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 17px;
+  max-width: 760px;
+  line-height: 1.45;
+}
+
+.chips-back-btn,
+.chips-refresh-btn {
+  border: none;
+  border-radius: 18px;
+  padding: 15px 28px;
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.chips-back-btn:hover,
+.chips-refresh-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.chips-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.chips-stat-card {
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.chips-stat-card span {
+  display: block;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.chips-stat-card strong {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.chips-filter-card {
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.chips-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chips-filter-group label {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.chips-filter-group input,
+.chips-filter-group select {
+  width: 100%;
+  height: 50px;
+  border: none;
+  outline: none;
+  border-radius: 16px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.13);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.chips-filter-group input::placeholder {
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.chips-filter-group select option {
+  color: #111827;
+}
+
+.chips-users-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.chips-user-card {
+  border-radius: 26px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.085);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.24);
+  color: white;
+}
+
+.chips-user-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.chips-user-top h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+
+.chips-user-top p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.chips-count-pill {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chips-chip-row {
+  padding: 15px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chips-chip-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.chips-chip-title strong {
+  font-size: 15px;
+}
+
+.chips-used,
+.chips-available {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.chips-used {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.34);
+}
+
+.chips-available {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.chips-chip-details p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.chips-chip-details span {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 900;
+}
+
+.chips-remaining {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.chips-remaining span {
+  color: white;
+  font-weight: 900;
+}
+
+.chips-empty-card {
+  padding: 28px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.085);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: white;
+}
+
+.chips-empty-card h3 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.chips-empty-card p {
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.45;
+}
+
+.chips-error-card {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.2);
+}
+
+@media (max-width: 900px) {
+  .chips-hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 24px;
+  }
+
+  .chips-back-btn {
+    width: 100%;
+  }
+
+  .chips-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chips-filter-card {
+    grid-template-columns: 1fr;
+  }
+
+  .chips-refresh-btn {
+    width: 100%;
+  }
+
+  .chips-users-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chips-hero h1 {
+    font-size: 52px;
+  }
+}
+
+@media (max-width: 520px) {
+  .chips-hero {
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .chips-hero h1 {
+    font-size: 46px;
+  }
+
+  .chips-hero p {
+    font-size: 14px;
+  }
+
+  .chips-user-card {
+    padding: 17px;
+    border-radius: 22px;
+  }
+
+  .chips-user-top {
+    flex-direction: column;
+  }
+
+  .chips-count-pill {
+    width: fit-content;
+  }
+
+  .chips-chip-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
