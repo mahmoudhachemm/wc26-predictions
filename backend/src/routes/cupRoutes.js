@@ -1,9 +1,11 @@
 import express from "express";
+
 import User from "../models/User.js";
 import Prediction from "../models/Prediction.js";
 import CupGroup from "../models/CupGroup.js";
 import CupMatch from "../models/CupMatch.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
+import { calculatePoints } from "../utils/calculatePoints.js";
 
 const router = express.Router();
 
@@ -57,25 +59,42 @@ function normalizeCupMatch(match) {
     userBName: item.userB?.fullName || "",
     winnerId: cleanId(item.winner),
     winnerName: item.winner?.fullName || "",
+    adminWinnerId: cleanId(item.adminWinner),
   };
 }
 
-async function getUserCupData(userId, gameweek) {
+function hasResult(prediction) {
+  return (
+    prediction.actualScoreA !== null &&
+    prediction.actualScoreA !== undefined &&
+    prediction.actualScoreB !== null &&
+    prediction.actualScoreB !== undefined
+  );
+}
+
+function getPredictionCupPoints(prediction) {
+  if (!hasResult(prediction)) return 0;
+
+  const basePoints = calculatePoints(
+    prediction.predictedScoreA,
+    prediction.predictedScoreB,
+    prediction.actualScoreA,
+    prediction.actualScoreB
+  );
+
+  return prediction.isCupJoker ? basePoints * 2 : basePoints;
+}
+
+async function getUserCupPointsForRound(userId, gameweek) {
   const predictions = await Prediction.find({
     user: userId,
     gameweek,
     fixtureStatus: "finished",
   });
 
-  const cupPoints = predictions.reduce(
-    (sum, prediction) => sum + Number(prediction.cupPoints || prediction.points || 0),
-    0
-  );
-
-  return {
-    cupPoints,
-    hasFinishedPredictions: predictions.length > 0,
-  };
+  return predictions.reduce((sum, prediction) => {
+    return sum + getPredictionCupPoints(prediction);
+  }, 0);
 }
 
 async function getUserLeaderboardPoints(userId) {
@@ -84,45 +103,9 @@ async function getUserLeaderboardPoints(userId) {
     fixtureStatus: "finished",
   });
 
-  return predictions.reduce(
-    (sum, prediction) => sum + Number(prediction.points || 0),
-    0
-  );
-}
-
-async function recalculateGroupStageMatches() {
-  const matches = await CupMatch.find({ phase: "Group Stage" });
-
-  for (const match of matches) {
-    if (!match.userA || !match.userB) continue;
-
-    const userAData = await getUserCupData(match.userA, match.gameweek);
-    const userBData = await getUserCupData(match.userB, match.gameweek);
-
-    match.cupScoreA = userAData.cupPoints;
-    match.cupScoreB = userBData.cupPoints;
-
-    const isCompleted =
-      userAData.hasFinishedPredictions || userBData.hasFinishedPredictions;
-
-    match.isCompleted = isCompleted;
-    match.needsAdminDecision = false;
-
-    if (!isCompleted) {
-      match.winner = null;
-    } else if (match.adminWinner) {
-      match.winner = match.adminWinner;
-    } else if (match.cupScoreA > match.cupScoreB) {
-      match.winner = match.userA;
-    } else if (match.cupScoreB > match.cupScoreA) {
-      match.winner = match.userB;
-    } else {
-      match.winner = null;
-      match.needsAdminDecision = true;
-    }
-
-    await match.save();
-  }
+  return predictions.reduce((sum, prediction) => {
+    return sum + Number(prediction.points || 0);
+  }, 0);
 }
 
 function getDirectWinnerBetween(groupMatches, userAId, userBId) {
@@ -142,24 +125,23 @@ function getDirectWinnerBetween(groupMatches, userAId, userBId) {
 }
 
 async function buildGroupStandings() {
-  await recalculateGroupStageMatches();
-
   const groups = await CupGroup.find({})
-    .populate("users", "fullName email role")
+    .populate("users", "fullName role")
     .sort({ name: 1 });
 
   const matches = await CupMatch.find({ phase: "Group Stage" })
-    .populate("userA", "fullName email role")
-    .populate("userB", "fullName email role")
-    .populate("winner", "fullName email role")
+    .populate("userA", "fullName role")
+    .populate("userB", "fullName role")
+    .populate("winner", "fullName role")
     .sort({ matchNumber: 1 });
 
   const leaderboardPointsMap = {};
   const users = await User.find({ role: "user" });
 
   for (const user of users) {
-    leaderboardPointsMap[user._id.toString()] =
-      await getUserLeaderboardPoints(user._id);
+    leaderboardPointsMap[user._id.toString()] = await getUserLeaderboardPoints(
+      user._id
+    );
   }
 
   const standings = [];
@@ -247,7 +229,11 @@ async function buildGroupStandings() {
         return a.cupPointsAgainst - b.cupPointsAgainst;
       }
 
-      const directWinner = getDirectWinnerBetween(groupMatches, a.userId, b.userId);
+      const directWinner = getDirectWinnerBetween(
+        groupMatches,
+        a.userId,
+        b.userId
+      );
 
       if (directWinner === a.userId) return -1;
       if (directWinner === b.userId) return 1;
@@ -292,19 +278,11 @@ function getScheduleForGroup(groupSize) {
   }
 
   if (groupSize === 3) {
-    return [
-      [[0, 1]],
-      [[0, 2]],
-      [[1, 2]],
-    ];
+    return [[[0, 1]], [[0, 2]], [[1, 2]]];
   }
 
   if (groupSize === 2) {
-    return [
-      [[0, 1]],
-      [],
-      [],
-    ];
+    return [[[0, 1]], [], []];
   }
 
   return [[], [], []];
@@ -331,9 +309,33 @@ function splitUsersIntoGroups(users) {
   return groups;
 }
 
+async function loadCupPayload(message = "") {
+  const groups = await CupGroup.find({})
+    .populate("users", "fullName role")
+    .sort({ name: 1 });
+
+  const matches = await CupMatch.find({})
+    .populate("userA", "fullName role")
+    .populate("userB", "fullName role")
+    .populate("winner", "fullName role")
+    .populate("adminWinner", "fullName role")
+    .sort({ matchNumber: 1 });
+
+  const standings = await buildGroupStandings();
+
+  return {
+    message,
+    groups,
+    matches: matches.map(normalizeCupMatch),
+    standings,
+  };
+}
+
 async function generateRandomGroupStage(req, res) {
   try {
-    const playingUsers = await User.find({ role: "user" }).sort({ fullName: 1 });
+    const playingUsers = await User.find({ role: "user" }).sort({
+      fullName: 1,
+    });
 
     if (playingUsers.length < 2) {
       return res.status(400).json({
@@ -364,9 +366,15 @@ async function generateRandomGroupStage(req, res) {
         users: groupUsers.map((user) => user._id),
       });
 
-      const randomizedSchedule = shuffleArray(getScheduleForGroup(groupUsers.length));
+      const randomizedSchedule = shuffleArray(
+        getScheduleForGroup(groupUsers.length)
+      );
 
-      for (let roundIndex = 0; roundIndex < GROUP_ROUNDS.length; roundIndex += 1) {
+      for (
+        let roundIndex = 0;
+        roundIndex < GROUP_ROUNDS.length;
+        roundIndex += 1
+      ) {
         const gameweek = GROUP_ROUNDS[roundIndex];
         const roundPairs = randomizedSchedule[roundIndex] || [];
 
@@ -383,6 +391,12 @@ async function generateRandomGroupStage(req, res) {
             matchNumber,
             userA: userA._id,
             userB: userB._id,
+            cupScoreA: 0,
+            cupScoreB: 0,
+            winner: null,
+            adminWinner: null,
+            isCompleted: false,
+            needsAdminDecision: false,
           });
 
           matchNumber += 1;
@@ -390,24 +404,11 @@ async function generateRandomGroupStage(req, res) {
       }
     }
 
-    const groups = await CupGroup.find({})
-      .populate("users", "fullName email role")
-      .sort({ name: 1 });
+    const payload = await loadCupPayload(
+      "Random group stage generated successfully."
+    );
 
-    const matches = await CupMatch.find({})
-      .populate("userA", "fullName email role")
-      .populate("userB", "fullName email role")
-      .populate("winner", "fullName email role")
-      .sort({ matchNumber: 1 });
-
-    const standings = await buildGroupStandings();
-
-    return res.json({
-      message: "Random group stage generated successfully.",
-      groups,
-      matches: matches.map(normalizeCupMatch),
-      standings,
-    });
+    return res.json(payload);
   } catch (err) {
     return res.status(500).json({
       message: err.message || "Failed to generate random group stage.",
@@ -417,23 +418,8 @@ async function generateRandomGroupStage(req, res) {
 
 router.get("/", protect, async (req, res) => {
   try {
-    const groups = await CupGroup.find({})
-      .populate("users", "fullName email role")
-      .sort({ name: 1 });
-
-    const matches = await CupMatch.find({})
-      .populate("userA", "fullName email role")
-      .populate("userB", "fullName email role")
-      .populate("winner", "fullName email role")
-      .sort({ matchNumber: 1 });
-
-    const standings = await buildGroupStandings();
-
-    return res.json({
-      groups,
-      matches: matches.map(normalizeCupMatch),
-      standings,
-    });
+    const payload = await loadCupPayload();
+    return res.json(payload);
   } catch (err) {
     return res.status(500).json({
       message: err.message || "Failed to load cup.",
@@ -455,35 +441,70 @@ router.get("/standings", protect, async (req, res) => {
   }
 });
 
+router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
+  try {
+    const gameweek = decodeURIComponent(req.params.gameweek);
+
+    if (!GROUP_ROUNDS.includes(gameweek)) {
+      return res.status(400).json({
+        message: "Invalid Cup round.",
+      });
+    }
+
+    const matches = await CupMatch.find({
+      phase: "Group Stage",
+      gameweek,
+    });
+
+    if (matches.length === 0) {
+      return res.status(400).json({
+        message: `No Cup games found for ${gameweek}.`,
+      });
+    }
+
+    for (const match of matches) {
+      const scoreA = await getUserCupPointsForRound(match.userA, gameweek);
+      const scoreB = await getUserCupPointsForRound(match.userB, gameweek);
+
+      match.cupScoreA = scoreA;
+      match.cupScoreB = scoreB;
+      match.isCompleted = true;
+      match.needsAdminDecision = false;
+
+      if (match.adminWinner) {
+        match.winner = match.adminWinner;
+      } else if (scoreA > scoreB) {
+        match.winner = match.userA;
+      } else if (scoreB > scoreA) {
+        match.winner = match.userB;
+      } else {
+        match.winner = null;
+        match.needsAdminDecision = true;
+      }
+
+      await match.save();
+    }
+
+    const payload = await loadCupPayload(`${gameweek} submitted successfully.`);
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to submit Cup round.",
+    });
+  }
+});
+
 router.post("/generate-group-stage", protect, adminOnly, generateRandomGroupStage);
 
 router.post("/generate-groups", protect, adminOnly, generateRandomGroupStage);
 
 router.post("/recalculate", protect, adminOnly, async (req, res) => {
   try {
-    await recalculateGroupStageMatches();
-
-    const groups = await CupGroup.find({})
-      .populate("users", "fullName email role")
-      .sort({ name: 1 });
-
-    const matches = await CupMatch.find({})
-      .populate("userA", "fullName email role")
-      .populate("userB", "fullName email role")
-      .populate("winner", "fullName email role")
-      .sort({ matchNumber: 1 });
-
-    const standings = await buildGroupStandings();
-
-    return res.json({
-      message: "Cup group stage recalculated successfully.",
-      groups,
-      matches: matches.map(normalizeCupMatch),
-      standings,
-    });
+    const payload = await loadCupPayload("Cup loaded successfully.");
+    return res.json(payload);
   } catch (err) {
     return res.status(500).json({
-      message: err.message || "Failed to recalculate cup.",
+      message: err.message || "Failed to load cup.",
     });
   }
 });
@@ -495,7 +516,9 @@ router.post("/set-admin-winner/:matchId", protect, adminOnly, async (req, res) =
     const match = await CupMatch.findById(req.params.matchId);
 
     if (!match) {
-      return res.status(404).json({ message: "Cup match not found." });
+      return res.status(404).json({
+        message: "Cup match not found.",
+      });
     }
 
     const validWinners = [cleanId(match.userA), cleanId(match.userB)];
@@ -513,12 +536,8 @@ router.post("/set-admin-winner/:matchId", protect, adminOnly, async (req, res) =
 
     await match.save();
 
-    const updatedMatch = await CupMatch.findById(match._id)
-      .populate("userA", "fullName email role")
-      .populate("userB", "fullName email role")
-      .populate("winner", "fullName email role");
-
-    return res.json(normalizeCupMatch(updatedMatch));
+    const payload = await loadCupPayload("Tie winner selected successfully.");
+    return res.json(payload);
   } catch (err) {
     return res.status(500).json({
       message: err.message || "Failed to set admin winner.",

@@ -42,9 +42,9 @@ function AdminCup() {
     loadCup();
   }, []);
 
-  async function handleGenerateGroupStage() {
+  async function handleSubmitRound(round) {
     const ok = window.confirm(
-      "This will randomly distribute users into 12 groups and randomly generate group-stage games. It will delete old cup groups/games. Continue?"
+      `Submit ${round}? This will calculate Cup scores and winners for ${round}.`
     );
 
     if (!ok) return;
@@ -52,33 +52,14 @@ function AdminCup() {
     try {
       setActionLoading(true);
 
-      const data = await apiRequest("/cup/generate-group-stage", {
+      const data = await apiRequest(`/cup/submit-round/${encodeURIComponent(round)}`, {
         method: "POST",
       });
 
       applyCupData(data);
-
-      alert(data?.message || "Random group stage generated successfully.");
+      alert(data?.message || `${round} submitted successfully.`);
     } catch (err) {
-      alert(err.message || "Failed to generate group stage.");
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleRecalculate() {
-    try {
-      setActionLoading(true);
-
-      const data = await apiRequest("/cup/recalculate", {
-        method: "POST",
-      });
-
-      applyCupData(data);
-
-      alert(data?.message || "Cup recalculated successfully.");
-    } catch (err) {
-      alert(err.message || "Failed to recalculate cup.");
+      alert(err.message || `Failed to submit ${round}.`);
     } finally {
       setActionLoading(false);
     }
@@ -101,23 +82,31 @@ function AdminCup() {
 
   function getWinnerText(match) {
     if (!match.winnerId) return "";
-
     if (match.winnerId === match.userAId) return match.userAName;
     if (match.winnerId === match.userBId) return match.userBName;
-
     return match.winnerName || "";
+  }
+
+  function getRoundStatus(round) {
+    const roundMatches = matches.filter(
+      (match) => match.phase === "Group Stage" && match.gameweek === round
+    );
+
+    if (roundMatches.length === 0) return "No games";
+    if (roundMatches.every((match) => match.isCompleted)) return "Submitted";
+    return "Not submitted";
   }
 
   async function chooseAdminWinner(matchId, winnerId) {
     try {
       setActionLoading(true);
 
-      await apiRequest(`/cup/set-admin-winner/${matchId}`, {
+      const data = await apiRequest(`/cup/set-admin-winner/${matchId}`, {
         method: "POST",
         body: JSON.stringify({ winnerId }),
       });
 
-      await loadCup();
+      applyCupData(data);
     } catch (err) {
       alert(err.message || "Failed to set winner.");
     } finally {
@@ -129,202 +118,207 @@ function AdminCup() {
     <div className="admin-bg-page" style={{ backgroundImage: `url(${bg})` }}>
       <div className="admin-bg-overlay"></div>
 
-      <div className="admin-content">
+      <div className="admin-content cup-clean-page">
         <div className="admin-header">
           <div>
             <p className="admin-kicker">Admin Mode</p>
             <h1>Cup Manager</h1>
-            <p>Generate random groups and random group-stage games.</p>
+            <p>Submit each round only when you want to calculate scores.</p>
           </div>
 
-          <button className="admin-black-btn" onClick={() => navigate("/admin")}>
+          <button className="admin-logout-btn" onClick={() => navigate("/admin")}>
             Back
           </button>
         </div>
 
-        <div className="cup-admin-actions">
-          <button
-            className="admin-black-btn"
-            onClick={handleGenerateGroupStage}
-            disabled={actionLoading}
-          >
-            Generate Random Group Stage
-          </button>
+        <div className="cup-admin-submit-card">
+          <div>
+            <h2>Submit Cup Rounds</h2>
+            <p>Games stay not submitted until you click a round button.</p>
+          </div>
 
-          <button
-            className="admin-black-btn"
-            onClick={handleRecalculate}
-            disabled={actionLoading}
-          >
-            Recalculate Cup
-          </button>
+          <div className="cup-admin-submit-actions">
+            {GROUP_ROUNDS.map((round) => (
+              <button
+                key={round}
+                className={
+                  getRoundStatus(round) === "Submitted"
+                    ? "cup-submit-btn submitted"
+                    : "cup-submit-btn"
+                }
+                onClick={() => handleSubmitRound(round)}
+                disabled={actionLoading || getRoundStatus(round) === "No games"}
+              >
+                <span>{round}</span>
+                <strong>{getRoundStatus(round)}</strong>
+              </button>
+            ))}
 
-          <button
-            className="admin-black-btn"
-            onClick={() => navigate("/cup")}
-            disabled={actionLoading}
-          >
-            View Cup Page
-          </button>
+            <button
+              className="cup-view-btn"
+              onClick={() => navigate("/cup")}
+              disabled={actionLoading}
+            >
+              View Cup
+            </button>
+          </div>
         </div>
 
         {loading ? (
-          <div className="empty-card">
+          <div className="admin-section-card">
             <h3>Loading cup...</h3>
           </div>
         ) : groups.length === 0 ? (
-          <div className="empty-card">
-            <h3>No groups yet</h3>
-            <p>Click Generate Random Group Stage to create the 12 groups.</p>
+          <div className="admin-section-card">
+            <h3>No groups found</h3>
+            <p>
+              No cup groups found. If you need the generate button again, tell me.
+            </p>
           </div>
         ) : (
-          <div className="cup-grid">
+          <div className="cup-clean-groups">
             {groups.map((group) => {
               const rows = getGroupStandings(group.name);
 
               return (
-                <div
-                  className="cup-group-card"
-                  key={group.id || group._id || group.name}
-                >
-                  <div className="cup-card-header">
-                    <div>
-                      <p className="cup-label">Group Stage</p>
-                      <h2>{group.name}</h2>
-                    </div>
-
-                    <div className="cup-count">
-                      {(group.users || []).length}
-                      <span>users</span>
-                    </div>
+                <div className="cup-clean-group-card" key={group._id || group.name}>
+                  <div className="cup-clean-group-title">
+                    <span>🏆</span>
+                    <h2>{group.name}</h2>
                   </div>
 
-                  <div className="cup-users">
-                    {(group.users || []).map((user, index) => (
-                      <div className="cup-user-row" key={user._id || user.id || index}>
-                        <span className="cup-user-number">{index + 1}</span>
-                        <span className="cup-user-name">
-                          {user.fullName || user.email || "User"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="cup-clean-table-wrap">
+                    <table className="cup-clean-table">
+                      <thead>
+                        <tr>
+                          <th>Pos</th>
+                          <th>User</th>
+                          <th>GP</th>
+                          <th>For</th>
+                          <th>Against</th>
+                          <th>GD</th>
+                          <th>PTS</th>
+                        </tr>
+                      </thead>
 
-                  <div className="cup-section-title">Standings</div>
-
-                  {rows.length === 0 ? (
-                    <div className="mini-empty">No standings yet.</div>
-                  ) : (
-                    <div className="cup-standings">
-                      <div className="cup-standings-head">
-                        <span>Pos</span>
-                        <span>User</span>
-                        <span>GP</span>
-                        <span>GD</span>
-                        <span>PF</span>
-                      </div>
-
-                      {rows.map((row) => (
-                        <div
-                          className={`cup-standings-row ${
-                            row.position <= 2
-                              ? "qualified-row"
-                              : row.position === 3
-                              ? "third-row"
-                              : ""
-                          }`}
-                          key={row.userId}
-                        >
-                          <span>{row.position}</span>
-                          <span>{row.userName}</span>
-                          <span>{row.groupPoints}</span>
-                          <span>{row.cupPointsDifference}</span>
-                          <span>{row.cupPointsFor}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="cup-section-title">Games</div>
-
-                  <div className="cup-rounds">
-                    {GROUP_ROUNDS.map((round) => (
-                      <div className="cup-round-block" key={round}>
-                        <div className="cup-round-title">{round}</div>
-
-                        {getRoundMatches(group.name, round).length === 0 ? (
-                          <div className="mini-empty">No games yet.</div>
+                      <tbody>
+                        {rows.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" className="cup-empty-cell">
+                              No standings yet.
+                            </td>
+                          </tr>
                         ) : (
-                          getRoundMatches(group.name, round).map((match) => {
-                            const winnerText = getWinnerText(match);
-
-                            return (
-                              <div className="cup-match-card" key={match.id}>
-                                <div className="cup-match-users">
-                                  <div
-                                    className={`cup-match-user ${
-                                      match.winnerId === match.userAId
-                                        ? "cup-match-winner"
-                                        : ""
-                                    }`}
-                                  >
-                                    <span>{match.userAName || "TBD"}</span>
-                                    <strong>{match.cupScoreA || 0}</strong>
-                                  </div>
-
-                                  <div className="cup-vs">vs</div>
-
-                                  <div
-                                    className={`cup-match-user ${
-                                      match.winnerId === match.userBId
-                                        ? "cup-match-winner"
-                                        : ""
-                                    }`}
-                                  >
-                                    <span>{match.userBName || "TBD"}</span>
-                                    <strong>{match.cupScoreB || 0}</strong>
-                                  </div>
-                                </div>
-
-                                <div className="cup-match-footer">
-                                  {match.needsAdminDecision ? (
-                                    <span>Needs admin decision</span>
-                                  ) : match.isCompleted ? (
-                                    <span>Finished</span>
-                                  ) : (
-                                    <span>Not played yet</span>
-                                  )}
-
-                                  {winnerText && <span>Winner: {winnerText}</span>}
-                                </div>
-
-                                {match.needsAdminDecision && (
-                                  <div className="cup-admin-decision">
-                                    <button
-                                      onClick={() =>
-                                        chooseAdminWinner(match.id, match.userAId)
-                                      }
-                                      disabled={actionLoading}
-                                    >
-                                      Choose {match.userAName}
-                                    </button>
-
-                                    <button
-                                      onClick={() =>
-                                        chooseAdminWinner(match.id, match.userBId)
-                                      }
-                                      disabled={actionLoading}
-                                    >
-                                      Choose {match.userBName}
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })
+                          rows.map((row) => (
+                            <tr key={row.userId}>
+                              <td>{row.position}</td>
+                              <td>
+                                <strong>{row.userName}</strong>
+                              </td>
+                              <td>{row.played}</td>
+                              <td>{row.cupPointsFor}</td>
+                              <td>{row.cupPointsAgainst}</td>
+                              <td>{row.cupPointsDifference}</td>
+                              <td>
+                                <strong>{row.groupPoints}</strong>
+                              </td>
+                            </tr>
+                          ))
                         )}
-                      </div>
-                    ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="cup-clean-rounds">
+                    {GROUP_ROUNDS.map((round) => {
+                      const roundMatches = getRoundMatches(group.name, round);
+
+                      return (
+                        <div className="cup-clean-round-card" key={round}>
+                          <h3>{round}</h3>
+
+                          {roundMatches.length === 0 ? (
+                            <p className="cup-no-games">No games yet.</p>
+                          ) : (
+                            <div className="cup-clean-match-list">
+                              {roundMatches.map((match) => {
+                                const winnerText = getWinnerText(match);
+
+                                return (
+                                  <div className="cup-clean-match" key={match.id}>
+                                    <div className="cup-clean-scoreline">
+                                      <div className="cup-clean-team cup-left-team">
+                                        {match.userAName || "TBD"}
+                                      </div>
+
+                                      <div className="cup-clean-score">
+                                        <span>
+                                          {match.isCompleted
+                                            ? Number(match.cupScoreA || 0)
+                                            : "-"}
+                                        </span>
+                                        <b>-</b>
+                                        <span>
+                                          {match.isCompleted
+                                            ? Number(match.cupScoreB || 0)
+                                            : "-"}
+                                        </span>
+                                      </div>
+
+                                      <div className="cup-clean-team cup-right-team">
+                                        {match.userBName || "TBD"}
+                                      </div>
+                                    </div>
+
+                                    <div className="cup-clean-match-meta">
+                                      {match.needsAdminDecision ? (
+                                        <span className="cup-status-tie">
+                                          Tie decision needed
+                                        </span>
+                                      ) : match.isCompleted ? (
+                                        <span className="cup-status-finished">
+                                          Finished
+                                        </span>
+                                      ) : (
+                                        <span className="cup-status-open">
+                                          Not submitted
+                                        </span>
+                                      )}
+
+                                      {winnerText && (
+                                        <strong>Winner: {winnerText}</strong>
+                                      )}
+                                    </div>
+
+                                    {match.needsAdminDecision && (
+                                      <div className="cup-admin-tie-actions">
+                                        <button
+                                          onClick={() =>
+                                            chooseAdminWinner(match.id, match.userAId)
+                                          }
+                                          disabled={actionLoading}
+                                        >
+                                          Choose {match.userAName}
+                                        </button>
+
+                                        <button
+                                          onClick={() =>
+                                            chooseAdminWinner(match.id, match.userBId)
+                                          }
+                                          disabled={actionLoading}
+                                        >
+                                          Choose {match.userBName}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
