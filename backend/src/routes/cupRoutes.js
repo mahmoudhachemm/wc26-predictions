@@ -72,6 +72,20 @@ function hasResult(prediction) {
   );
 }
 
+function isNormalCupJoker(prediction) {
+  const chip = prediction.specialChip || "none";
+
+  if (chip === "none" && prediction.isJoker) return true;
+
+  if (chip === "triple_joker" && prediction.isJoker) return true;
+
+  if (chip === "double_jokers" && prediction.isCupJoker) return true;
+
+  if (chip === "maximum_joker" && prediction.isCupJoker) return true;
+
+  return Boolean(prediction.isCupJoker);
+}
+
 function getPredictionCupPoints(prediction) {
   if (!hasResult(prediction)) return 0;
 
@@ -82,7 +96,7 @@ function getPredictionCupPoints(prediction) {
     prediction.actualScoreB
   );
 
-  return prediction.isCupJoker ? basePoints * 2 : basePoints;
+  return isNormalCupJoker(prediction) ? basePoints * 2 : basePoints;
 }
 
 async function getUserCupPointsForRound(userId, gameweek) {
@@ -490,6 +504,42 @@ router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
   } catch (err) {
     return res.status(500).json({
       message: err.message || "Failed to submit Cup round.",
+    });
+  }
+});
+
+router.post("/reset-round/:gameweek", protect, adminOnly, async (req, res) => {
+  try {
+    const gameweek = decodeURIComponent(req.params.gameweek);
+
+    if (!GROUP_ROUNDS.includes(gameweek)) {
+      return res.status(400).json({
+        message: "Invalid Cup round.",
+      });
+    }
+
+    await CupMatch.updateMany(
+      {
+        phase: "Group Stage",
+        gameweek,
+      },
+      {
+        $set: {
+          cupScoreA: 0,
+          cupScoreB: 0,
+          winner: null,
+          adminWinner: null,
+          isCompleted: false,
+          needsAdminDecision: false,
+        },
+      }
+    );
+
+    const payload = await loadCupPayload(`${gameweek} reset successfully.`);
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to reset Cup round.",
     });
   }
 });

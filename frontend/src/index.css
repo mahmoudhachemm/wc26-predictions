@@ -7801,3 +7801,51 @@ body,
     gap: 8px;
   }
 }
+
+.cup-click-title {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.cup-click-title b {
+  margin-left: auto;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.cup-round-action-box {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cup-reset-btn {
+  border: none;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #ef4444;
+  color: white;
+  font-weight: 1000;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.cup-reset-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.cup-reset-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .cup-round-action-box {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+}
