@@ -72,21 +72,18 @@ function hasResult(prediction) {
   );
 }
 
-function isNormalCupJoker(prediction) {
+function isCupJokerForCup(prediction) {
   const chip = prediction.specialChip || "none";
 
   if (chip === "none" && prediction.isJoker) return true;
-
   if (chip === "triple_joker" && prediction.isJoker) return true;
-
   if (chip === "double_jokers" && prediction.isCupJoker) return true;
-
   if (chip === "maximum_joker" && prediction.isCupJoker) return true;
 
-  return Boolean(prediction.isCupJoker);
+  return false;
 }
 
-function getPredictionCupPoints(prediction) {
+function calculatePredictionCupPoints(prediction) {
   if (!hasResult(prediction)) return 0;
 
   const basePoints = calculatePoints(
@@ -96,7 +93,7 @@ function getPredictionCupPoints(prediction) {
     prediction.actualScoreB
   );
 
-  return isNormalCupJoker(prediction) ? basePoints * 2 : basePoints;
+  return isCupJokerForCup(prediction) ? basePoints * 2 : basePoints;
 }
 
 async function getUserCupPointsForRound(userId, gameweek) {
@@ -107,7 +104,7 @@ async function getUserCupPointsForRound(userId, gameweek) {
   });
 
   return predictions.reduce((sum, prediction) => {
-    return sum + getPredictionCupPoints(prediction);
+    return sum + calculatePredictionCupPoints(prediction);
   }, 0);
 }
 
@@ -149,8 +146,8 @@ async function buildGroupStandings() {
     .populate("winner", "fullName role")
     .sort({ matchNumber: 1 });
 
-  const leaderboardPointsMap = {};
   const users = await User.find({ role: "user" });
+  const leaderboardPointsMap = {};
 
   for (const user of users) {
     leaderboardPointsMap[user._id.toString()] = await getUserLeaderboardPoints(
