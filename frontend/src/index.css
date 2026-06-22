@@ -7970,3 +7970,173 @@ body,
     font-size: 11px;
   }
 }
+
+/* Chips round filter */
+
+.chips-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.chips-stat-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  padding: 16px;
+  display: grid;
+  gap: 6px;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12);
+}
+
+.chips-stat-card span {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.7;
+}
+
+.chips-stat-card strong {
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.chips-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.chips-filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.chips-filters select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-weight: 800;
+  background: white;
+}
+
+.chips-users-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chips-user-card {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.14);
+}
+
+.chips-user-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.chips-user-head h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 950;
+}
+
+.chips-user-head span {
+  background: #111827;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.chips-list {
+  display: grid;
+  gap: 10px;
+}
+
+.chips-item {
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.chips-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chips-item-top strong {
+  font-weight: 950;
+}
+
+.chips-item-top span {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+
+.chips-used .chips-item-top span {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.chips-available .chips-item-top span {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.chips-item p {
+  margin: 5px 0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.chips-remaining {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 800px) {
+  .chips-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chips-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .chips-users-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chips-user-head h2 {
+    font-size: 18px;
+  }
+
+  .chips-stat-card {
+    padding: 13px;
+  }
+
+  .chips-stat-card strong {
+    font-size: 23px;
+  }
+}
