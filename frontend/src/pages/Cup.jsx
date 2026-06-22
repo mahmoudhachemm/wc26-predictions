@@ -12,6 +12,7 @@ function Cup({ currentUser }) {
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openGroups, setOpenGroups] = useState({});
 
   function cleanId(value) {
     if (!value) return "";
@@ -32,14 +33,25 @@ function Cup({ currentUser }) {
       const data = await apiRequest("/cup");
       const safeData = data || {};
 
-      setGroups(Array.isArray(safeData.groups) ? safeData.groups : []);
+      const safeGroups = Array.isArray(safeData.groups) ? safeData.groups : [];
+
+      setGroups(safeGroups);
       setMatches(Array.isArray(safeData.matches) ? safeData.matches : []);
-      setStandings(Array.isArray(safeData.standings) ? safeData.standings : []);
+      setStandings(
+        Array.isArray(safeData.standings) ? safeData.standings : []
+      );
+
+      const defaultOpen = {};
+      safeGroups.forEach((group) => {
+        defaultOpen[group.name] = true;
+      });
+      setOpenGroups(defaultOpen);
     } catch (err) {
       alert(err.message || "Failed to load cup.");
       setGroups([]);
       setMatches([]);
       setStandings([]);
+      setOpenGroups({});
     } finally {
       setLoading(false);
     }
@@ -84,8 +96,15 @@ function Cup({ currentUser }) {
 
   function getWinnerLabel(match) {
     if (!match.winnerId) return "";
-    if (match.winnerId === match.userAId) return match.userAName;
-    if (match.winnerId === match.userBId) return match.userBName;
+
+    if (cleanId(match.winnerId) === cleanId(match.userAId)) {
+      return match.userAName;
+    }
+
+    if (cleanId(match.winnerId) === cleanId(match.userBId)) {
+      return match.userBName;
+    }
+
     return match.winnerName || "";
   }
 
@@ -93,6 +112,13 @@ function Cup({ currentUser }) {
     if (match.needsAdminDecision) return "Tie decision needed";
     if (match.isCompleted) return "Finished";
     return "Not submitted";
+  }
+
+  function toggleGroup(groupName) {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
   }
 
   function handleBack() {
@@ -136,126 +162,162 @@ function Cup({ currentUser }) {
             {groups.map((group) => {
               const rows = getStandingsRows(group.name);
               const groupMatches = groupedMatches[group.name] || {};
+              const isOpen = openGroups[group.name] !== false;
 
               return (
-                <div className="cup-clean-group-card" key={group._id || group.name}>
-                  <div className="cup-clean-group-title">
-                    <span>🏆</span>
-                    <h2>{group.name}</h2>
-                  </div>
+                <div
+                  className="cup-clean-group-card"
+                  key={group._id || group.name}
+                >
+                  <button
+                    type="button"
+                    className="cup-clean-group-title cup-group-toggle"
+                    onClick={() => toggleGroup(group.name)}
+                  >
+                    <div className="cup-group-title-left">
+                      <span className="cup-group-dot"></span>
+                      <h2>{group.name}</h2>
+                    </div>
 
-                  <div className="cup-clean-table-wrap">
-                    <table className="cup-clean-table">
-                      <thead>
-                        <tr>
-                          <th>Pos</th>
-                          <th>User</th>
-                          <th>GP</th>
-                          <th>For</th>
-                          <th>Against</th>
-                          <th>GD</th>
-                          <th>PTS</th>
-                        </tr>
-                      </thead>
+                    <span className="cup-group-arrow">
+                      {isOpen ? "⌃" : "⌄"}
+                    </span>
+                  </button>
 
-                      <tbody>
-                        {rows.length === 0 ? (
-                          <tr>
-                            <td colSpan="7" className="cup-empty-cell">
-                              No standings yet.
-                            </td>
-                          </tr>
-                        ) : (
-                          rows.map((row) => {
-                            const isMe = row.userId === getCurrentUserId();
+                  {isOpen && (
+                    <div className="cup-group-body">
+                      <div className="cup-clean-table-wrap">
+                        <table className="cup-clean-table">
+                          <thead>
+                            <tr>
+                              <th>Pos</th>
+                              <th>User</th>
+                              <th>GP</th>
+                              <th>For</th>
+                              <th>Against</th>
+                              <th>GD</th>
+                              <th>PTS</th>
+                            </tr>
+                          </thead>
 
-                            return (
-                              <tr key={row.userId} className={isMe ? "cup-me-row" : ""}>
-                                <td>{row.position}</td>
-                                <td>
-                                  <strong>{row.userName}</strong>
-                                  {isMe && <span className="cup-you-pill">You</span>}
-                                </td>
-                                <td>{row.played}</td>
-                                <td>{row.cupPointsFor}</td>
-                                <td>{row.cupPointsAgainst}</td>
-                                <td>{row.cupPointsDifference}</td>
-                                <td>
-                                  <strong>{row.groupPoints}</strong>
+                          <tbody>
+                            {rows.length === 0 ? (
+                              <tr>
+                                <td colSpan="7" className="cup-empty-cell">
+                                  No standings yet.
                                 </td>
                               </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="cup-clean-rounds">
-                    {GROUP_ROUNDS.map((round) => {
-                      const roundMatches = groupMatches[round] || [];
-
-                      return (
-                        <div className="cup-clean-round-card" key={round}>
-                          <h3>{round}</h3>
-
-                          {roundMatches.length === 0 ? (
-                            <p className="cup-no-games">No games yet.</p>
-                          ) : (
-                            <div className="cup-clean-match-list">
-                              {roundMatches.map((match) => {
-                                const winnerLabel = getWinnerLabel(match);
+                            ) : (
+                              rows.map((row) => {
+                                const isMe =
+                                  cleanId(row.userId) === getCurrentUserId();
 
                                 return (
-                                  <div className="cup-clean-match" key={match.id}>
-                                    <div className="cup-clean-scoreline">
-                                      <div className="cup-clean-team cup-left-team">
-                                        {match.userAName || "TBD"}
-                                      </div>
+                                  <tr
+                                    key={row.userId}
+                                    className={isMe ? "cup-me-row" : ""}
+                                  >
+                                    <td>{row.position}</td>
 
-                                      <div className="cup-clean-score">
-                                        <span>
-                                          {match.isCompleted
-                                            ? Number(match.cupScoreA || 0)
-                                            : "-"}
+                                    <td>
+                                      <strong>{row.userName}</strong>
+                                      {isMe && (
+                                        <span className="cup-you-pill">
+                                          You
                                         </span>
-                                        <b>-</b>
-                                        <span>
-                                          {match.isCompleted
-                                            ? Number(match.cupScoreB || 0)
-                                            : "-"}
-                                        </span>
-                                      </div>
-
-                                      <div className="cup-clean-team cup-right-team">
-                                        {match.userBName || "TBD"}
-                                      </div>
-                                    </div>
-
-                                    <div className="cup-clean-match-meta">
-                                      <span
-                                        className={
-                                          match.isCompleted
-                                            ? "cup-status-finished"
-                                            : "cup-status-open"
-                                        }
-                                      >
-                                        {getMatchStatus(match)}
-                                      </span>
-
-                                      {winnerLabel && (
-                                        <strong>Winner: {winnerLabel}</strong>
                                       )}
-                                    </div>
-                                  </div>
+                                    </td>
+
+                                    <td>{row.played}</td>
+                                    <td>{row.cupPointsFor}</td>
+                                    <td>{row.cupPointsAgainst}</td>
+                                    <td>{row.cupPointsDifference}</td>
+
+                                    <td>
+                                      <strong>{row.groupPoints}</strong>
+                                    </td>
+                                  </tr>
                                 );
-                              })}
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="cup-clean-rounds">
+                        {GROUP_ROUNDS.map((round) => {
+                          const roundMatches = groupMatches[round] || [];
+
+                          return (
+                            <div className="cup-clean-round-card" key={round}>
+                              <h3>{round}</h3>
+
+                              {roundMatches.length === 0 ? (
+                                <p className="cup-no-games">No games yet.</p>
+                              ) : (
+                                <div className="cup-clean-match-list">
+                                  {roundMatches.map((match) => {
+                                    const winnerLabel = getWinnerLabel(match);
+
+                                    return (
+                                      <div
+                                        className="cup-clean-match"
+                                        key={match._id || match.id}
+                                      >
+                                        <div className="cup-clean-scoreline">
+                                          <div className="cup-clean-team cup-left-team">
+                                            {match.userAName || "TBD"}
+                                          </div>
+
+                                          <div className="cup-clean-score">
+                                            <span>
+                                              {match.isCompleted
+                                                ? Number(match.cupScoreA || 0)
+                                                : "-"}
+                                            </span>
+
+                                            <b>-</b>
+
+                                            <span>
+                                              {match.isCompleted
+                                                ? Number(match.cupScoreB || 0)
+                                                : "-"}
+                                            </span>
+                                          </div>
+
+                                          <div className="cup-clean-team cup-right-team">
+                                            {match.userBName || "TBD"}
+                                          </div>
+                                        </div>
+
+                                        <div className="cup-clean-match-meta">
+                                          <span
+                                            className={
+                                              match.isCompleted
+                                                ? "cup-status-finished"
+                                                : "cup-status-open"
+                                            }
+                                          >
+                                            {getMatchStatus(match)}
+                                          </span>
+
+                                          {winnerLabel && (
+                                            <strong>
+                                              Winner: {winnerLabel}
+                                            </strong>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
