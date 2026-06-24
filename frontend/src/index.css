@@ -8140,3 +8140,282 @@ body,
     font-size: 23px;
   }
 }
+/* =========================
+   CHIPS PAGE - CLEARER UI
+   Replace old chips styles
+   ========================= */
+
+.chips-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chips-stat-card {
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chips-stat-card span {
+  font-size: 12px;
+  font-weight: 900;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.chips-stat-card strong {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 950;
+  color: #111827;
+}
+
+.chips-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.chips-filters label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.chips-filters select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 12px 13px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+  outline: none;
+}
+
+.chips-filters select:focus {
+  border-color: #111827;
+}
+
+.chips-users-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.chips-user-card {
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.chips-user-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.chips-user-head h2 {
+  margin: 0;
+  font-size: 27px;
+  line-height: 1.1;
+  font-weight: 950;
+  color: #111827;
+}
+
+.chips-user-head span {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.chips-list {
+  display: grid;
+  gap: 12px;
+}
+
+.chips-item {
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.chips-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.chips-item-top strong {
+  font-size: 14px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #111827;
+}
+
+.chips-item-top span {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.chips-used {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.chips-used .chips-item-top strong {
+  color: #22c55e;
+}
+
+.chips-used .chips-item-top span {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.chips-available {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.chips-available .chips-item-top strong {
+  color: #9ca3af;
+}
+
+.chips-available .chips-item-top span {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.chips-item p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 800;
+  color: #4b5563;
+}
+
+.chips-item p strong {
+  color: #111827;
+  font-weight: 900;
+}
+
+.chips-used p strong {
+  color: #22c55e;
+}
+
+.chips-remaining {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 800;
+  color: #374151;
+}
+
+.chips-remaining strong {
+  color: #111827;
+  font-weight: 950;
+}
+
+/* Refresh button inside filters */
+.chips-filters .admin-black-btn {
+  height: 46px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+/* Better spacing for the white filter card */
+.admin-section-card .chips-filters {
+  margin-top: 2px;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+  .chips-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chips-users-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .chips-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .chips-stat-card {
+    padding: 14px;
+  }
+
+  .chips-stat-card strong {
+    font-size: 24px;
+  }
+
+  .chips-user-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .chips-user-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chips-user-head h2 {
+    font-size: 22px;
+  }
+
+  .chips-user-head span {
+    align-self: flex-start;
+  }
+
+  .chips-item {
+    padding: 12px;
+  }
+
+  .chips-item-top {
+    align-items: flex-start;
+  }
+
+  .chips-item-top strong {
+    font-size: 13px;
+  }
+
+  .chips-item p {
+    font-size: 12px;
+  }
+
+  .chips-remaining {
+    font-size: 12px;
+  }
+}
