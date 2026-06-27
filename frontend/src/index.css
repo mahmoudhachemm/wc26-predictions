@@ -8419,3 +8419,72 @@ body,
     font-size: 12px;
   }
 }
+.cup-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cup-admin-rounds {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cup-admin-round-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.cup-admin-round-card strong {
+  color: #111827;
+  font-weight: 950;
+}
+
+.cup-admin-round-card span {
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cup-admin-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-small-danger-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 13px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-small-danger-btn:disabled,
+.admin-black-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 800px) {
+  .cup-admin-rounds {
+    grid-template-columns: 1fr;
+  }
+
+  .cup-admin-actions {
+    flex-direction: column;
+  }
+
+  .cup-admin-actions button {
+    width: 100%;
+  }
+}
