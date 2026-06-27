@@ -35,31 +35,63 @@ const KNOCKOUT_ROUNDS = [
 
 const ALL_CUP_ROUNDS = [...GROUP_ROUNDS, ...KNOCKOUT_ROUNDS];
 
-const NEXT_KNOCKOUT_ROUND = {
-  "Round of 32": "Round of 16",
-  "Round of 16": "Quarter Final",
-  "Quarter Final": "Semi Final",
-  "Semi Final": "Final",
-};
-
-const SEED_PAIR_ORDER = [
-  [1, 32],
-  [16, 17],
-  [8, 25],
-  [9, 24],
-  [4, 29],
-  [13, 20],
-  [5, 28],
-  [12, 21],
-  [2, 31],
-  [15, 18],
-  [7, 26],
-  [10, 23],
-  [3, 30],
-  [14, 19],
-  [6, 27],
-  [11, 22],
+const ROUND_OF_32_TEMPLATE = [
+  { no: 1, a: "2A", b: "2B" },
+  { no: 2, a: "1E", b: "3A/B/C/D/F" },
+  { no: 3, a: "1F", b: "2C" },
+  { no: 4, a: "1C", b: "2F" },
+  { no: 5, a: "1I", b: "3C/D/F/G/H" },
+  { no: 6, a: "2E", b: "2I" },
+  { no: 7, a: "1A", b: "3C/E/F/H/I" },
+  { no: 8, a: "1L", b: "3E/H/I/J/K" },
+  { no: 9, a: "1D", b: "3B/E/F/I/J" },
+  { no: 10, a: "1G", b: "3A/E/H/I/J" },
+  { no: 11, a: "2K", b: "2L" },
+  { no: 12, a: "1H", b: "2J" },
+  { no: 13, a: "1B", b: "3E/F/G/I/J" },
+  { no: 14, a: "1J", b: "2H" },
+  { no: 15, a: "1K", b: "3D/E/I/J/L" },
+  { no: 16, a: "2D", b: "2G" },
 ];
+
+const NEXT_ROUND_TEMPLATES = {
+  "Round of 32": {
+    nextRound: "Round of 16",
+    matches: [
+      { no: 17, a: 1, b: 3 },
+      { no: 18, a: 2, b: 5 },
+      { no: 19, a: 4, b: 6 },
+      { no: 20, a: 7, b: 8 },
+      { no: 21, a: 11, b: 12 },
+      { no: 22, a: 9, b: 10 },
+      { no: 23, a: 14, b: 16 },
+      { no: 24, a: 13, b: 15 },
+    ],
+  },
+
+  "Round of 16": {
+    nextRound: "Quarter Final",
+    matches: [
+      { no: 25, a: 17, b: 18 },
+      { no: 26, a: 21, b: 22 },
+      { no: 27, a: 19, b: 20 },
+      { no: 28, a: 23, b: 24 },
+    ],
+  },
+
+  "Quarter Final": {
+    nextRound: "Semi Final",
+    matches: [
+      { no: 29, a: 25, b: 26 },
+      { no: 30, a: 27, b: 28 },
+    ],
+  },
+
+  "Semi Final": {
+    nextRound: "Final",
+    matches: [{ no: 31, a: 29, b: 30 }],
+  },
+};
 
 function shuffleArray(array) {
   const copy = [...array];
@@ -80,6 +112,10 @@ function cleanId(value) {
   if (value._id) return value._id.toString();
   if (value.id) return value.id.toString();
   return value.toString();
+}
+
+function getGroupLetter(groupName) {
+  return String(groupName || "").replace("Group ", "").trim();
 }
 
 function normalizeCupMatch(match) {
@@ -169,7 +205,6 @@ function getDirectWinnerBetween(groupMatches, userAId, userBId) {
   });
 
   if (!directMatch || !directMatch.winner) return "";
-
   return cleanId(directMatch.winner);
 }
 
@@ -277,6 +312,7 @@ async function buildGroupStandings() {
       userId: user._id.toString(),
       userName: user.fullName,
       groupName: group.name,
+      groupLetter: getGroupLetter(group.name),
       played: 0,
       wins: 0,
       draws: 0,
@@ -347,6 +383,7 @@ async function buildGroupStandings() {
     standings.push({
       groupId: group._id.toString(),
       groupName: group.name,
+      groupLetter: getGroupLetter(group.name),
       rows: sortedRows,
     });
   }
@@ -431,31 +468,142 @@ async function areAllGroupStageMatchesDone() {
   );
 }
 
-function buildSeededQualifiers(standings) {
-  const winners = [];
-  const runners = [];
+function getFixedGroupSlot(standings, slot) {
+  const position = Number(slot[0]);
+  const groupLetter = slot.slice(1);
+
+  const group = standings.find((item) => item.groupLetter === groupLetter);
+
+  if (!group) {
+    throw new Error(`Group ${groupLetter} not found for slot ${slot}.`);
+  }
+
+  const row = group.rows[position - 1];
+
+  if (!row) {
+    throw new Error(`Slot ${slot} has no user.`);
+  }
+
+  return row;
+}
+
+function getBestThirdRows(standings) {
   const thirds = [];
 
   standings.forEach((group) => {
-    const rows = group.rows || [];
+    const third = group.rows?.[2];
 
-    if (rows[0]) winners.push({ ...rows[0], seedType: "Winner" });
-    if (rows[1]) runners.push({ ...rows[1], seedType: "Runner-up" });
-    if (rows[2]) thirds.push({ ...rows[2], seedType: "Third" });
+    if (third) {
+      thirds.push({
+        ...third,
+        groupName: group.groupName,
+        groupLetter: group.groupLetter,
+        seedType: "Third",
+      });
+    }
   });
 
-  winners.sort(compareBySportRules);
-  runners.sort(compareBySportRules);
   thirds.sort(compareBySportRules);
 
-  const bestThirds = thirds.slice(0, 8);
-  const qualifiers = [...winners, ...runners, ...bestThirds];
+  return thirds.slice(0, 8);
+}
 
-  qualifiers.forEach((user, index) => {
-    user.seed = index + 1;
+function parseThirdSlot(slot) {
+  return slot.replace("3", "").split("/");
+}
+
+function isThirdSlot(slot) {
+  return String(slot).startsWith("3");
+}
+
+function assignThirdUsersToSlots(bestThirds, thirdSlots) {
+  const assignments = {};
+  const usedUserIds = new Set();
+
+  const sortedSlots = [...thirdSlots].sort((a, b) => {
+    const aOptions = parseThirdSlot(a.slot);
+    const bOptions = parseThirdSlot(b.slot);
+
+    const aCandidates = bestThirds.filter((third) =>
+      aOptions.includes(third.groupLetter)
+    ).length;
+
+    const bCandidates = bestThirds.filter((third) =>
+      bOptions.includes(third.groupLetter)
+    ).length;
+
+    return aCandidates - bCandidates;
   });
 
-  return qualifiers;
+  function backtrack(index) {
+    if (index >= sortedSlots.length) return true;
+
+    const current = sortedSlots[index];
+    const options = parseThirdSlot(current.slot);
+
+    const candidates = bestThirds.filter((third) => {
+      return (
+        options.includes(third.groupLetter) && !usedUserIds.has(third.userId)
+      );
+    });
+
+    for (const candidate of candidates) {
+      assignments[current.matchNo] = candidate;
+      usedUserIds.add(candidate.userId);
+
+      if (backtrack(index + 1)) return true;
+
+      usedUserIds.delete(candidate.userId);
+      delete assignments[current.matchNo];
+    }
+
+    return false;
+  }
+
+  const success = backtrack(0);
+
+  if (!success) {
+    throw new Error(
+      "Could not assign qualified third-place users to the Round of 32 slots."
+    );
+  }
+
+  return assignments;
+}
+
+function buildRoundOf32Participants(standings) {
+  const bestThirds = getBestThirdRows(standings);
+
+  const thirdSlots = ROUND_OF_32_TEMPLATE.filter(
+    (match) => isThirdSlot(match.a) || isThirdSlot(match.b)
+  ).map((match) => ({
+    matchNo: match.no,
+    slot: isThirdSlot(match.a) ? match.a : match.b,
+  }));
+
+  const thirdAssignments = assignThirdUsersToSlots(bestThirds, thirdSlots);
+
+  return ROUND_OF_32_TEMPLATE.map((match) => {
+    const userA = isThirdSlot(match.a)
+      ? thirdAssignments[match.no]
+      : getFixedGroupSlot(standings, match.a);
+
+    const userB = isThirdSlot(match.b)
+      ? thirdAssignments[match.no]
+      : getFixedGroupSlot(standings, match.b);
+
+    if (!userA || !userB) {
+      throw new Error(`Could not build Match ${match.no}.`);
+    }
+
+    return {
+      no: match.no,
+      slotA: match.a,
+      slotB: match.b,
+      userA,
+      userB,
+    };
+  });
 }
 
 async function generateRoundOf32IfReady() {
@@ -470,28 +618,26 @@ async function generateRoundOf32IfReady() {
   if (!groupStageDone) return;
 
   const standings = await buildGroupStandings();
-  const qualifiers = buildSeededQualifiers(standings);
+  const roundOf32Matches = buildRoundOf32Participants(standings);
 
-  if (qualifiers.length !== 32) {
-    throw new Error(
-      `Round of 32 needs exactly 32 qualified users. Current qualified users: ${qualifiers.length}`
-    );
+  if (roundOf32Matches.length !== 16) {
+    throw new Error("Round of 32 needs exactly 16 matches.");
   }
 
   let matchNumber = await getNextMatchNumber();
 
-  for (const pair of SEED_PAIR_ORDER) {
-    const userA = qualifiers[pair[0] - 1];
-    const userB = qualifiers[pair[1] - 1];
-
+  for (const item of roundOf32Matches) {
     await CupMatch.create({
       phase: "Knockout",
       gameweek: "Round of 32",
       groupName: "",
       knockoutRound: "Round of 32",
       matchNumber,
-      userA: userA.userId,
-      userB: userB.userId,
+      cupBracketMatchNumber: item.no,
+      bracketSlotA: item.slotA,
+      bracketSlotB: item.slotB,
+      userA: item.userA.userId,
+      userB: item.userB.userId,
       cupScoreA: 0,
       cupScoreB: 0,
       winner: null,
@@ -505,46 +651,55 @@ async function generateRoundOf32IfReady() {
 }
 
 async function generateNextKnockoutRoundIfReady(currentRound) {
-  const nextRound = NEXT_KNOCKOUT_ROUND[currentRound];
+  const template = NEXT_ROUND_TEMPLATES[currentRound];
 
-  if (!nextRound) return;
+  if (!template) return;
 
   const currentDone = await areAllMatchesDoneForRound(currentRound);
 
   if (!currentDone) return;
 
   const existingNextRound = await CupMatch.countDocuments({
-    gameweek: nextRound,
+    gameweek: template.nextRound,
   });
 
   if (existingNextRound > 0) return;
 
-  const currentMatches = await CupMatch.find({ gameweek: currentRound }).sort({
-    matchNumber: 1,
+  const allKnockoutMatches = await CupMatch.find({
+    phase: "Knockout",
   });
 
-  if (currentMatches.length < 2) return;
+  const matchMap = {};
+
+  allKnockoutMatches.forEach((match) => {
+    if (match.cupBracketMatchNumber) {
+      matchMap[Number(match.cupBracketMatchNumber)] = match;
+    }
+  });
 
   let matchNumber = await getNextMatchNumber();
 
-  for (let i = 0; i < currentMatches.length; i += 2) {
-    const matchA = currentMatches[i];
-    const matchB = currentMatches[i + 1];
+  for (const item of template.matches) {
+    const sourceA = matchMap[item.a];
+    const sourceB = matchMap[item.b];
 
-    if (!matchA || !matchB || !matchA.winner || !matchB.winner) {
-      continue;
+    if (!sourceA || !sourceB || !sourceA.winner || !sourceB.winner) {
+      throw new Error(`Cannot generate Match ${item.no}. Missing winners.`);
     }
 
     await CupMatch.create({
       phase: "Knockout",
-      gameweek: nextRound,
+      gameweek: template.nextRound,
       groupName: "",
-      knockoutRound: nextRound,
+      knockoutRound: template.nextRound,
       matchNumber,
-      userA: matchA.winner,
-      userB: matchB.winner,
-      sourceMatchA: matchA._id,
-      sourceMatchB: matchB._id,
+      cupBracketMatchNumber: item.no,
+      bracketSlotA: `Winner Match ${item.a}`,
+      bracketSlotB: `Winner Match ${item.b}`,
+      userA: sourceA.winner,
+      userB: sourceB.winner,
+      sourceMatchA: sourceA._id,
+      sourceMatchB: sourceB._id,
       cupScoreA: 0,
       cupScoreB: 0,
       winner: null,
@@ -591,6 +746,8 @@ async function loadCupPayload(message = "") {
     .populate("userB", "fullName role")
     .populate("winner", "fullName role")
     .populate("adminWinner", "fullName role")
+    .populate("sourceMatchA")
+    .populate("sourceMatchB")
     .sort({ matchNumber: 1 });
 
   const standings = await buildGroupStandings();
@@ -664,6 +821,9 @@ async function generateRandomGroupStage(req, res) {
             groupName: group.name,
             knockoutRound: "",
             matchNumber,
+            cupBracketMatchNumber: null,
+            bracketSlotA: "",
+            bracketSlotB: "",
             userA: userA._id,
             userB: userB._id,
             cupScoreA: 0,

@@ -27,6 +27,21 @@ const cupMatchSchema = new mongoose.Schema(
       required: true,
     },
 
+    cupBracketMatchNumber: {
+      type: Number,
+      default: null,
+    },
+
+    bracketSlotA: {
+      type: String,
+      default: "",
+    },
+
+    bracketSlotB: {
+      type: String,
+      default: "",
+    },
+
     userA: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

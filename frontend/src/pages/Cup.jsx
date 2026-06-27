@@ -6,11 +6,11 @@ import { apiRequest } from "../api/api";
 const GROUP_ROUNDS = ["Round 1", "Round 2", "Round 3"];
 
 const KNOCKOUT_ROUNDS = [
-  "Round of 32",
-  "Round of 16",
-  "Quarter Final",
-  "Semi Final",
-  "Final",
+  { key: "round32", label: "Round of 32", round: "Round of 32" },
+  { key: "round16", label: "Round of 16", round: "Round of 16" },
+  { key: "quarter", label: "Quarter Final", round: "Quarter Final" },
+  { key: "semi", label: "Semi Final", round: "Semi Final" },
+  { key: "final", label: "Final", round: "Final" },
 ];
 
 function Cup({ currentUser }) {
@@ -21,6 +21,7 @@ function Cup({ currentUser }) {
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openGroups, setOpenGroups] = useState({});
+  const [activePage, setActivePage] = useState("groups");
 
   function cleanId(value) {
     if (!value) return "";
@@ -99,12 +100,14 @@ function Cup({ currentUser }) {
   const knockoutMatchesByRound = useMemo(() => {
     const map = {};
 
-    KNOCKOUT_ROUNDS.forEach((round) => {
-      map[round] = matches
-        .filter((match) => match.gameweek === round)
-        .sort(
-          (a, b) => Number(a.matchNumber || 0) - Number(b.matchNumber || 0)
-        );
+    KNOCKOUT_ROUNDS.forEach((item) => {
+      map[item.round] = matches
+        .filter((match) => match.gameweek === item.round)
+        .sort((a, b) => {
+          const aNo = Number(a.cupBracketMatchNumber || a.matchNumber || 0);
+          const bNo = Number(b.cupBracketMatchNumber || b.matchNumber || 0);
+          return aNo - bNo;
+        });
     });
 
     return map;
@@ -126,9 +129,7 @@ function Cup({ currentUser }) {
     });
 
     thirdRows.sort((a, b) => {
-      if (b.groupPoints !== a.groupPoints) {
-        return b.groupPoints - a.groupPoints;
-      }
+      if (b.groupPoints !== a.groupPoints) return b.groupPoints - a.groupPoints;
 
       if (b.cupPointsDifference !== a.cupPointsDifference) {
         return b.cupPointsDifference - a.cupPointsDifference;
@@ -201,6 +202,13 @@ function Cup({ currentUser }) {
 
     return (
       <div className="cup-clean-match" key={match._id || match.id}>
+        {match.cupBracketMatchNumber && (
+          <div className="cup-match-number">
+            Match {match.cupBracketMatchNumber}: {match.bracketSlotA} vs{" "}
+            {match.bracketSlotB}
+          </div>
+        )}
+
         <div className="cup-clean-scoreline">
           <div className="cup-clean-team cup-left-team">
             {match.userAName || "TBD"}
@@ -238,7 +246,7 @@ function Cup({ currentUser }) {
     );
   }
 
-  function renderGroupsSection() {
+  function renderGroupsPage() {
     return (
       <div className="cup-clean-groups">
         {groups.map((group) => {
@@ -352,7 +360,7 @@ function Cup({ currentUser }) {
     );
   }
 
-  function renderBestThirdSection() {
+  function renderBestThirdPage() {
     return (
       <div className="cup-best-third-card">
         <div className="cup-best-third-head">
@@ -435,32 +443,33 @@ function Cup({ currentUser }) {
     );
   }
 
-  function renderKnockoutSection() {
+  function renderKnockoutPage(round) {
+    const roundMatches = knockoutMatchesByRound[round] || [];
+
     return (
       <div className="admin-section-card">
-        <h2>Knockout Stage</h2>
+        <h2>{round}</h2>
 
-        <div className="cup-clean-rounds">
-          {KNOCKOUT_ROUNDS.map((round) => {
-            const roundMatches = knockoutMatchesByRound[round] || [];
-
-            return (
-              <div className="cup-clean-round-card" key={round}>
-                <h3>{round}</h3>
-
-                {roundMatches.length === 0 ? (
-                  <p className="cup-no-games">Not generated yet.</p>
-                ) : (
-                  <div className="cup-clean-match-list">
-                    {roundMatches.map((match) => renderCupMatch(match))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {roundMatches.length === 0 ? (
+          <p className="cup-no-games">Not generated yet.</p>
+        ) : (
+          <div className="cup-clean-match-list">
+            {roundMatches.map((match) => renderCupMatch(match))}
+          </div>
+        )}
       </div>
     );
+  }
+
+  function renderActivePage() {
+    if (activePage === "groups") return renderGroupsPage();
+    if (activePage === "best3rd") return renderBestThirdPage();
+
+    const knockoutItem = KNOCKOUT_ROUNDS.find((item) => item.key === activePage);
+
+    if (knockoutItem) return renderKnockoutPage(knockoutItem.round);
+
+    return renderGroupsPage();
   }
 
   return (
@@ -474,7 +483,7 @@ function Cup({ currentUser }) {
               {currentUser?.role === "admin" ? "Admin Mode" : "User Mode"}
             </p>
             <h1>Cup</h1>
-            <p>Group standings, best third-place users, and H2H games.</p>
+            <p>Group stage, best thirds, and knockout bracket.</p>
           </div>
 
           <button className="admin-logout-btn" onClick={handleBack}>
@@ -493,9 +502,33 @@ function Cup({ currentUser }) {
           </div>
         ) : (
           <>
-            {renderGroupsSection()}
-            {renderBestThirdSection()}
-            {renderKnockoutSection()}
+            <div className="cup-page-tabs">
+              <button
+                className={activePage === "groups" ? "active" : ""}
+                onClick={() => setActivePage("groups")}
+              >
+                Group Stage
+              </button>
+
+              <button
+                className={activePage === "best3rd" ? "active" : ""}
+                onClick={() => setActivePage("best3rd")}
+              >
+                Best 3rd
+              </button>
+
+              {KNOCKOUT_ROUNDS.map((item) => (
+                <button
+                  key={item.key}
+                  className={activePage === item.key ? "active" : ""}
+                  onClick={() => setActivePage(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {renderActivePage()}
           </>
         )}
       </div>
