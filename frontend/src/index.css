@@ -8488,3 +8488,109 @@ body,
     width: 100%;
   }
 }
+/* Best 3rd placed users section */
+
+.cup-best-third-card {
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 22px;
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.14);
+}
+
+.cup-best-third-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cup-best-third-head h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.cup-best-third-head p {
+  margin: 5px 0 0;
+  color: #4b5563;
+  font-weight: 750;
+}
+
+.cup-qualified-count {
+  background: #111827;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.cup-qualified-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.cup-out-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.cup-best-third-table td,
+.cup-best-third-table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .cup-best-third-card {
+    padding: 13px;
+    border-radius: 18px;
+  }
+
+  .cup-best-third-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cup-best-third-head h2 {
+    font-size: 22px;
+  }
+
+  .cup-qualified-count {
+    align-self: flex-start;
+  }
+
+  .cup-best-third-table {
+    font-size: 11px;
+  }
+
+  .cup-best-third-table th,
+  .cup-best-third-table td {
+    padding: 7px 5px;
+  }
+
+  .cup-best-third-table th:nth-child(5),
+  .cup-best-third-table td:nth-child(5),
+  .cup-best-third-table th:nth-child(6),
+  .cup-best-third-table td:nth-child(6) {
+    display: none;
+  }
+}

@@ -5,6 +5,14 @@ import { apiRequest } from "../api/api";
 
 const GROUP_ROUNDS = ["Round 1", "Round 2", "Round 3"];
 
+const KNOCKOUT_ROUNDS = [
+  "Round of 32",
+  "Round of 16",
+  "Quarter Final",
+  "Semi Final",
+  "Final",
+];
+
 function Cup({ currentUser }) {
   const navigate = useNavigate();
 
@@ -32,7 +40,6 @@ function Cup({ currentUser }) {
 
       const data = await apiRequest("/cup");
       const safeData = data || {};
-
       const safeGroups = Array.isArray(safeData.groups) ? safeData.groups : [];
 
       setGroups(safeGroups);
@@ -42,8 +49,8 @@ function Cup({ currentUser }) {
       );
 
       const defaultOpen = {};
-      safeGroups.forEach((group) => {
-        defaultOpen[group.name] = true;
+      safeGroups.forEach((group, index) => {
+        defaultOpen[group.name] = index === 0;
       });
       setOpenGroups(defaultOpen);
     } catch (err) {
@@ -89,6 +96,66 @@ function Cup({ currentUser }) {
     return map;
   }, [matches]);
 
+  const knockoutMatchesByRound = useMemo(() => {
+    const map = {};
+
+    KNOCKOUT_ROUNDS.forEach((round) => {
+      map[round] = matches
+        .filter((match) => match.gameweek === round)
+        .sort(
+          (a, b) => Number(a.matchNumber || 0) - Number(b.matchNumber || 0)
+        );
+    });
+
+    return map;
+  }, [matches]);
+
+  const bestThirdPlacedUsers = useMemo(() => {
+    const thirdRows = [];
+
+    standings.forEach((group) => {
+      const rows = Array.isArray(group.rows) ? group.rows : [];
+      const third = rows[2];
+
+      if (third) {
+        thirdRows.push({
+          ...third,
+          groupName: group.groupName,
+        });
+      }
+    });
+
+    thirdRows.sort((a, b) => {
+      if (b.groupPoints !== a.groupPoints) {
+        return b.groupPoints - a.groupPoints;
+      }
+
+      if (b.cupPointsDifference !== a.cupPointsDifference) {
+        return b.cupPointsDifference - a.cupPointsDifference;
+      }
+
+      if (b.cupPointsFor !== a.cupPointsFor) {
+        return b.cupPointsFor - a.cupPointsFor;
+      }
+
+      if (a.cupPointsAgainst !== b.cupPointsAgainst) {
+        return a.cupPointsAgainst - b.cupPointsAgainst;
+      }
+
+      if (b.leaderboardPoints !== a.leaderboardPoints) {
+        return b.leaderboardPoints - a.leaderboardPoints;
+      }
+
+      return a.userName.localeCompare(b.userName);
+    });
+
+    return thirdRows.map((row, index) => ({
+      ...row,
+      bestThirdPosition: index + 1,
+      isQualified: index < 8,
+    }));
+  }, [standings]);
+
   function getStandingsRows(groupName) {
     const groupStanding = standings.find((item) => item.groupName === groupName);
     return groupStanding?.rows || [];
@@ -129,6 +196,48 @@ function Cup({ currentUser }) {
     }
   }
 
+  function renderCupMatch(match) {
+    const winnerLabel = getWinnerLabel(match);
+
+    return (
+      <div className="cup-clean-match" key={match._id || match.id}>
+        <div className="cup-clean-scoreline">
+          <div className="cup-clean-team cup-left-team">
+            {match.userAName || "TBD"}
+          </div>
+
+          <div className="cup-clean-score">
+            <span>
+              {match.isCompleted ? Number(match.cupScoreA || 0) : "-"}
+            </span>
+
+            <b>-</b>
+
+            <span>
+              {match.isCompleted ? Number(match.cupScoreB || 0) : "-"}
+            </span>
+          </div>
+
+          <div className="cup-clean-team cup-right-team">
+            {match.userBName || "TBD"}
+          </div>
+        </div>
+
+        <div className="cup-clean-match-meta">
+          <span
+            className={
+              match.isCompleted ? "cup-status-finished" : "cup-status-open"
+            }
+          >
+            {getMatchStatus(match)}
+          </span>
+
+          {winnerLabel && <strong>Winner: {winnerLabel}</strong>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-bg-page" style={{ backgroundImage: `url(${bg})` }}>
       <div className="admin-bg-overlay"></div>
@@ -140,7 +249,7 @@ function Cup({ currentUser }) {
               {currentUser?.role === "admin" ? "Admin Mode" : "User Mode"}
             </p>
             <h1>Cup</h1>
-            <p>Group standings and H2H games.</p>
+            <p>Group standings, best third-place users, and H2H games.</p>
           </div>
 
           <button className="admin-logout-btn" onClick={handleBack}>
@@ -158,170 +267,227 @@ function Cup({ currentUser }) {
             <p>Admin must generate the groups first.</p>
           </div>
         ) : (
-          <div className="cup-clean-groups">
-            {groups.map((group) => {
-              const rows = getStandingsRows(group.name);
-              const groupMatches = groupedMatches[group.name] || {};
-              const isOpen = openGroups[group.name] !== false;
-
-              return (
-                <div
-                  className="cup-clean-group-card"
-                  key={group._id || group.name}
-                >
-                  <button
-                    type="button"
-                    className="cup-clean-group-title cup-group-toggle"
-                    onClick={() => toggleGroup(group.name)}
-                  >
-                    <div className="cup-group-title-left">
-                      <span className="cup-group-dot"></span>
-                      <h2>{group.name}</h2>
-                    </div>
-
-                    <span className="cup-group-arrow">
-                      {isOpen ? "⌃" : "⌄"}
-                    </span>
-                  </button>
-
-                  {isOpen && (
-                    <div className="cup-group-body">
-                      <div className="cup-clean-table-wrap">
-                        <table className="cup-clean-table">
-                          <thead>
-                            <tr>
-                              <th>Pos</th>
-                              <th>User</th>
-                              <th>GP</th>
-                              <th>For</th>
-                              <th>Against</th>
-                              <th>GD</th>
-                              <th>PTS</th>
-                            </tr>
-                          </thead>
-
-                          <tbody>
-                            {rows.length === 0 ? (
-                              <tr>
-                                <td colSpan="7" className="cup-empty-cell">
-                                  No standings yet.
-                                </td>
-                              </tr>
-                            ) : (
-                              rows.map((row) => {
-                                const isMe =
-                                  cleanId(row.userId) === getCurrentUserId();
-
-                                return (
-                                  <tr
-                                    key={row.userId}
-                                    className={isMe ? "cup-me-row" : ""}
-                                  >
-                                    <td>{row.position}</td>
-
-                                    <td>
-                                      <strong>{row.userName}</strong>
-                                      {isMe && (
-                                        <span className="cup-you-pill">
-                                          You
-                                        </span>
-                                      )}
-                                    </td>
-
-                                    <td>{row.played}</td>
-                                    <td>{row.cupPointsFor}</td>
-                                    <td>{row.cupPointsAgainst}</td>
-                                    <td>{row.cupPointsDifference}</td>
-
-                                    <td>
-                                      <strong>{row.groupPoints}</strong>
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="cup-clean-rounds">
-                        {GROUP_ROUNDS.map((round) => {
-                          const roundMatches = groupMatches[round] || [];
-
-                          return (
-                            <div className="cup-clean-round-card" key={round}>
-                              <h3>{round}</h3>
-
-                              {roundMatches.length === 0 ? (
-                                <p className="cup-no-games">No games yet.</p>
-                              ) : (
-                                <div className="cup-clean-match-list">
-                                  {roundMatches.map((match) => {
-                                    const winnerLabel = getWinnerLabel(match);
-
-                                    return (
-                                      <div
-                                        className="cup-clean-match"
-                                        key={match._id || match.id}
-                                      >
-                                        <div className="cup-clean-scoreline">
-                                          <div className="cup-clean-team cup-left-team">
-                                            {match.userAName || "TBD"}
-                                          </div>
-
-                                          <div className="cup-clean-score">
-                                            <span>
-                                              {match.isCompleted
-                                                ? Number(match.cupScoreA || 0)
-                                                : "-"}
-                                            </span>
-
-                                            <b>-</b>
-
-                                            <span>
-                                              {match.isCompleted
-                                                ? Number(match.cupScoreB || 0)
-                                                : "-"}
-                                            </span>
-                                          </div>
-
-                                          <div className="cup-clean-team cup-right-team">
-                                            {match.userBName || "TBD"}
-                                          </div>
-                                        </div>
-
-                                        <div className="cup-clean-match-meta">
-                                          <span
-                                            className={
-                                              match.isCompleted
-                                                ? "cup-status-finished"
-                                                : "cup-status-open"
-                                            }
-                                          >
-                                            {getMatchStatus(match)}
-                                          </span>
-
-                                          {winnerLabel && (
-                                            <strong>
-                                              Winner: {winnerLabel}
-                                            </strong>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+          <>
+            <div className="cup-best-third-card">
+              <div className="cup-best-third-head">
+                <div>
+                  <p className="admin-kicker">Qualification</p>
+                  <h2>Best 3rd Placed Users</h2>
+                  <p>Top 8 third-place users currently qualify to Round of 32.</p>
                 </div>
-              );
-            })}
-          </div>
+
+                <span className="cup-qualified-count">
+                  {bestThirdPlacedUsers.filter((row) => row.isQualified).length}
+                  /8 Qualified
+                </span>
+              </div>
+
+              <div className="cup-clean-table-wrap">
+                <table className="cup-clean-table cup-best-third-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>User</th>
+                      <th>Group</th>
+                      <th>GP</th>
+                      <th>For</th>
+                      <th>Against</th>
+                      <th>GD</th>
+                      <th>PTS</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {bestThirdPlacedUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="9" className="cup-empty-cell">
+                          No third-place users yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      bestThirdPlacedUsers.map((row) => {
+                        const isMe =
+                          cleanId(row.userId) === getCurrentUserId();
+
+                        return (
+                          <tr
+                            key={`${row.groupName}-${row.userId}`}
+                            className={isMe ? "cup-me-row" : ""}
+                          >
+                            <td>{row.bestThirdPosition}</td>
+
+                            <td>
+                              <strong>{row.userName}</strong>
+                              {isMe && <span className="cup-you-pill">You</span>}
+                            </td>
+
+                            <td>{row.groupName}</td>
+                            <td>{row.played}</td>
+                            <td>{row.cupPointsFor}</td>
+                            <td>{row.cupPointsAgainst}</td>
+                            <td>{row.cupPointsDifference}</td>
+
+                            <td>
+                              <strong>{row.groupPoints}</strong>
+                            </td>
+
+                            <td>
+                              {row.isQualified ? (
+                                <span className="cup-qualified-pill">
+                                  Qualified
+                                </span>
+                              ) : (
+                                <span className="cup-out-pill">Out</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="admin-section-card">
+              <h2>Knockout Stage</h2>
+
+              <div className="cup-clean-rounds">
+                {KNOCKOUT_ROUNDS.map((round) => {
+                  const roundMatches = knockoutMatchesByRound[round] || [];
+
+                  return (
+                    <div className="cup-clean-round-card" key={round}>
+                      <h3>{round}</h3>
+
+                      {roundMatches.length === 0 ? (
+                        <p className="cup-no-games">Not generated yet.</p>
+                      ) : (
+                        <div className="cup-clean-match-list">
+                          {roundMatches.map((match) => renderCupMatch(match))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="cup-clean-groups">
+              {groups.map((group) => {
+                const rows = getStandingsRows(group.name);
+                const groupMatches = groupedMatches[group.name] || {};
+                const isOpen = openGroups[group.name] !== false;
+
+                return (
+                  <div
+                    className="cup-clean-group-card"
+                    key={group._id || group.name}
+                  >
+                    <button
+                      type="button"
+                      className="cup-clean-group-title cup-group-toggle"
+                      onClick={() => toggleGroup(group.name)}
+                    >
+                      <div className="cup-group-title-left">
+                        <span className="cup-group-dot"></span>
+                        <h2>{group.name}</h2>
+                      </div>
+
+                      <span className="cup-group-arrow">
+                        {isOpen ? "⌃" : "⌄"}
+                      </span>
+                    </button>
+
+                    {isOpen && (
+                      <div className="cup-group-body">
+                        <div className="cup-clean-table-wrap">
+                          <table className="cup-clean-table">
+                            <thead>
+                              <tr>
+                                <th>Pos</th>
+                                <th>User</th>
+                                <th>GP</th>
+                                <th>For</th>
+                                <th>Against</th>
+                                <th>GD</th>
+                                <th>PTS</th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {rows.length === 0 ? (
+                                <tr>
+                                  <td colSpan="7" className="cup-empty-cell">
+                                    No standings yet.
+                                  </td>
+                                </tr>
+                              ) : (
+                                rows.map((row) => {
+                                  const isMe =
+                                    cleanId(row.userId) === getCurrentUserId();
+
+                                  return (
+                                    <tr
+                                      key={row.userId}
+                                      className={isMe ? "cup-me-row" : ""}
+                                    >
+                                      <td>{row.position}</td>
+
+                                      <td>
+                                        <strong>{row.userName}</strong>
+                                        {isMe && (
+                                          <span className="cup-you-pill">
+                                            You
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      <td>{row.played}</td>
+                                      <td>{row.cupPointsFor}</td>
+                                      <td>{row.cupPointsAgainst}</td>
+                                      <td>{row.cupPointsDifference}</td>
+
+                                      <td>
+                                        <strong>{row.groupPoints}</strong>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="cup-clean-rounds">
+                          {GROUP_ROUNDS.map((round) => {
+                            const roundMatches = groupMatches[round] || [];
+
+                            return (
+                              <div className="cup-clean-round-card" key={round}>
+                                <h3>{round}</h3>
+
+                                {roundMatches.length === 0 ? (
+                                  <p className="cup-no-games">No games yet.</p>
+                                ) : (
+                                  <div className="cup-clean-match-list">
+                                    {roundMatches.map((match) =>
+                                      renderCupMatch(match)
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>
