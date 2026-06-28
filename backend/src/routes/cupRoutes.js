@@ -216,7 +216,9 @@ function getDirectWinnerBetween(groupMatches, userAId, userBId) {
 }
 
 function compareBySportRules(a, b) {
-  if (b.groupPoints !== a.groupPoints) return b.groupPoints - a.groupPoints;
+  if (b.groupPoints !== a.groupPoints) {
+    return b.groupPoints - a.groupPoints;
+  }
 
   if (b.cupPointsDifference !== a.cupPointsDifference) {
     return b.cupPointsDifference - a.cupPointsDifference;
@@ -241,7 +243,10 @@ function sortGroupRowsWithHeadToHead(rows, groupMatches) {
   const pointGroups = {};
 
   rows.forEach((row) => {
-    if (!pointGroups[row.groupPoints]) pointGroups[row.groupPoints] = [];
+    if (!pointGroups[row.groupPoints]) {
+      pointGroups[row.groupPoints] = [];
+    }
+
     pointGroups[row.groupPoints].push(row);
   });
 
@@ -420,7 +425,9 @@ function getScheduleForGroup(groupSize) {
 function splitUsersIntoGroups(users) {
   const totalUsers = users.length;
 
-  if (totalUsers < 2) throw new Error("Cup needs at least 2 users.");
+  if (totalUsers < 2) {
+    throw new Error("Cup needs at least 2 users.");
+  }
 
   if (totalUsers > 48) {
     throw new Error("Cup group stage supports maximum 48 users.");
@@ -441,11 +448,13 @@ async function getNextMatchNumber() {
   return lastMatch ? Number(lastMatch.matchNumber || 0) + 1 : 1;
 }
 
-async function areAllMatchesCompletedForRound(gameweek) {
-  const matches = await CupMatch.find({ gameweek });
+async function areAllGroupStageMatchesDone() {
+  const matches = await CupMatch.find({ phase: "Group Stage" });
 
   if (matches.length === 0) return false;
 
+  // Group stage ties are allowed.
+  // Draw = both users get 1 point.
   return matches.every((match) => match.isCompleted);
 }
 
@@ -460,27 +469,21 @@ async function areAllKnockoutMatchesDoneForRound(gameweek) {
   );
 }
 
-async function areAllGroupStageMatchesDone() {
-  const matches = await CupMatch.find({ phase: "Group Stage" });
-
-  if (matches.length === 0) return false;
-
-  return matches.every(
-    (match) => match.isCompleted && match.needsAdminDecision === false
-  );
-}
-
 function getFixedGroupSlot(standings, slot) {
   const position = Number(slot[0]);
   const groupLetter = slot.slice(1);
 
   const group = standings.find((item) => item.groupLetter === groupLetter);
 
-  if (!group) throw new Error(`Group ${groupLetter} not found.`);
+  if (!group) {
+    throw new Error(`Group ${groupLetter} not found.`);
+  }
 
   const row = group.rows[position - 1];
 
-  if (!row) throw new Error(`Slot ${slot} has no user.`);
+  if (!row) {
+    throw new Error(`Slot ${slot} has no user.`);
+  }
 
   return row;
 }
@@ -604,6 +607,23 @@ function buildRoundOf32Participants(standings) {
   });
 }
 
+async function cleanOldGroupTieDecisions() {
+  await CupMatch.updateMany(
+    {
+      phase: "Group Stage",
+      isCompleted: true,
+      needsAdminDecision: true,
+    },
+    {
+      $set: {
+        needsAdminDecision: false,
+        winner: null,
+        adminWinner: null,
+      },
+    }
+  );
+}
+
 async function generateRoundOf32() {
   const existing = await CupMatch.countDocuments({
     gameweek: "Round of 32",
@@ -612,6 +632,8 @@ async function generateRoundOf32() {
   if (existing > 0) {
     throw new Error("Round of 32 already generated.");
   }
+
+  await cleanOldGroupTieDecisions();
 
   const groupStageDone = await areAllGroupStageMatchesDone();
 
@@ -881,6 +903,20 @@ router.get("/standings", protect, async (req, res) => {
 router.post("/generate-group-stage", protect, adminOnly, generateRandomGroupStage);
 router.post("/generate-groups", protect, adminOnly, generateRandomGroupStage);
 
+router.post("/fix-group-ties", protect, adminOnly, async (req, res) => {
+  try {
+    await cleanOldGroupTieDecisions();
+
+    const payload = await loadCupPayload("Group stage ties fixed successfully.");
+
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to fix group ties.",
+    });
+  }
+});
+
 router.post("/generate-round/:gameweek", protect, adminOnly, async (req, res) => {
   try {
     const gameweek = decodeURIComponent(req.params.gameweek);
@@ -939,9 +975,12 @@ router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
       } else if (scoreB > scoreA) {
         match.winner = match.userB;
       } else if (isGroupStageRound) {
+        // Group-stage draw: no winner, no admin decision, both users get 1 group point.
         match.winner = null;
+        match.adminWinner = null;
         match.needsAdminDecision = false;
       } else {
+        // Knockout draw: admin must choose a winner.
         match.winner = null;
         match.needsAdminDecision = true;
       }
@@ -999,6 +1038,8 @@ router.post("/reset-round/:gameweek", protect, adminOnly, async (req, res) => {
 
 router.post("/recalculate", protect, adminOnly, async (req, res) => {
   try {
+    await cleanOldGroupTieDecisions();
+
     const payload = await loadCupPayload("Cup recalculated successfully.");
 
     return res.json(payload);
