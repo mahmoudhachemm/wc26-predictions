@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import bg from "../assets/bg.jpg";
 import { apiRequest } from "../api/api";
 
-const GROUP_ROUNDS = ["Round 1", "Round 2", "Round 3"];
-
 const KNOCKOUT_ROUNDS = [
   "Round of 32",
   "Round of 16",
@@ -12,8 +10,6 @@ const KNOCKOUT_ROUNDS = [
   "Semi Final",
   "Final",
 ];
-
-const ALL_CUP_ROUNDS = [...GROUP_ROUNDS, ...KNOCKOUT_ROUNDS];
 
 function AdminCup() {
   const navigate = useNavigate();
@@ -23,27 +19,13 @@ function AdminCup() {
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [openGroups, setOpenGroups] = useState({});
 
   function applyCupData(data) {
     const safeData = data || {};
-    const safeGroups = Array.isArray(safeData.groups) ? safeData.groups : [];
 
-    setGroups(safeGroups);
+    setGroups(Array.isArray(safeData.groups) ? safeData.groups : []);
     setMatches(Array.isArray(safeData.matches) ? safeData.matches : []);
     setStandings(Array.isArray(safeData.standings) ? safeData.standings : []);
-
-    setOpenGroups((prev) => {
-      const next = { ...prev };
-
-      safeGroups.forEach((group, index) => {
-        if (next[group.name] === undefined) {
-          next[group.name] = index === 0;
-        }
-      });
-
-      return next;
-    });
   }
 
   async function loadCup() {
@@ -71,30 +53,35 @@ function AdminCup() {
     KNOCKOUT_ROUNDS.forEach((round) => {
       map[round] = matches
         .filter((match) => match.gameweek === round)
-        .sort((a, b) => Number(a.matchNumber || 0) - Number(b.matchNumber || 0));
+        .sort((a, b) => {
+          const aNo = Number(a.cupBracketMatchNumber || a.matchNumber || 0);
+          const bNo = Number(b.cupBracketMatchNumber || b.matchNumber || 0);
+          return aNo - bNo;
+        });
     });
 
     return map;
   }, [matches]);
 
-  async function handleGenerateGroupStage() {
-    const ok = window.confirm(
-      "This will randomly distribute users into groups and delete old cup games. Continue?"
-    );
+  async function handleGenerateRound(round) {
+    const ok = window.confirm(`Generate ${round}?`);
 
     if (!ok) return;
 
     try {
       setActionLoading(true);
 
-      const data = await apiRequest("/cup/generate-group-stage", {
-        method: "POST",
-      });
+      const data = await apiRequest(
+        `/cup/generate-round/${encodeURIComponent(round)}`,
+        {
+          method: "POST",
+        }
+      );
 
       applyCupData(data);
-      alert(data?.message || "Random group stage generated successfully.");
+      alert(data?.message || `${round} generated successfully.`);
     } catch (err) {
-      alert(err.message || "Failed to generate group stage.");
+      alert(err.message || `Failed to generate ${round}.`);
     } finally {
       setActionLoading(false);
     }
@@ -102,7 +89,7 @@ function AdminCup() {
 
   async function handleSubmitRound(round) {
     const ok = window.confirm(
-      `Submit ${round}? This will calculate scores and winners.`
+      `Submit ${round}? This will calculate Cup scores and winners.`
     );
 
     if (!ok) return;
@@ -128,7 +115,7 @@ function AdminCup() {
 
   async function handleResetRound(round) {
     const ok = window.confirm(
-      `Reset ${round}? This will reset this round and delete future rounds.`
+      `Reset ${round}? This will delete this round and all future knockout rounds.`
     );
 
     if (!ok) return;
@@ -152,23 +139,6 @@ function AdminCup() {
     }
   }
 
-  async function handleRecalculate() {
-    try {
-      setActionLoading(true);
-
-      const data = await apiRequest("/cup/recalculate", {
-        method: "POST",
-      });
-
-      applyCupData(data);
-      alert(data?.message || "Cup recalculated successfully.");
-    } catch (err) {
-      alert(err.message || "Failed to recalculate cup.");
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
   async function chooseAdminWinner(matchId, winnerId) {
     try {
       setActionLoading(true);
@@ -186,21 +156,6 @@ function AdminCup() {
     }
   }
 
-  function getGroupMatches(groupName) {
-    return matches
-      .filter((match) => match.phase === "Group Stage")
-      .filter((match) => match.groupName === groupName)
-      .sort((a, b) => Number(a.matchNumber || 0) - Number(b.matchNumber || 0));
-  }
-
-  function getRoundMatches(groupName, round) {
-    return getGroupMatches(groupName).filter((match) => match.gameweek === round);
-  }
-
-  function getGroupStandings(groupName) {
-    return standings.find((group) => group.groupName === groupName)?.rows || [];
-  }
-
   function getWinnerText(match) {
     if (!match.winnerId) return "";
     if (match.winnerId === match.userAId) return match.userAName;
@@ -209,7 +164,7 @@ function AdminCup() {
   }
 
   function getRoundStatus(round) {
-    const roundMatches = matches.filter((match) => match.gameweek === round);
+    const roundMatches = knockoutMatchesByRound[round] || [];
 
     if (roundMatches.length === 0) return "Not generated";
     if (roundMatches.some((match) => match.needsAdminDecision)) {
@@ -220,18 +175,18 @@ function AdminCup() {
     return "Not submitted";
   }
 
-  function toggleGroup(groupName) {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [groupName]: !prev[groupName],
-    }));
-  }
-
   function renderMatch(match) {
     const winnerText = getWinnerText(match);
 
     return (
       <div className="cup-clean-match" key={match.id}>
+        {match.cupBracketMatchNumber && (
+          <div className="cup-match-number">
+            Match {match.cupBracketMatchNumber}: {match.bracketSlotA} vs{" "}
+            {match.bracketSlotB}
+          </div>
+        )}
+
         <div className="cup-clean-scoreline">
           <div className="cup-clean-team cup-left-team">
             {match.userAName || "TBD"}
@@ -292,7 +247,7 @@ function AdminCup() {
           <div>
             <p className="admin-kicker">Admin Mode</p>
             <h1>Cup Manager</h1>
-            <p>Group stage, qualifications, and full knockout bracket.</p>
+            <p>Generate, submit, and reset knockout rounds.</p>
           </div>
 
           <button className="admin-logout-btn" onClick={() => navigate("/admin")}>
@@ -301,50 +256,28 @@ function AdminCup() {
         </div>
 
         <div className="admin-section-card">
-          <h2>Cup Controls</h2>
+          <h2>Knockout Controls</h2>
           <p>
-            After submitting Round 3, Round of 32 is created automatically from
-            top 2 of every group + best 8 third-place users.
+            Generate Round of 32 after Round 3 is submitted. Then submit each
+            knockout round and generate the next one.
           </p>
 
-          <div className="cup-admin-actions">
-            <button
-              className="admin-black-btn"
-              onClick={handleGenerateGroupStage}
-              disabled={actionLoading}
-            >
-              Generate Group Stage
-            </button>
-
-            <button
-              className="admin-black-btn"
-              onClick={handleRecalculate}
-              disabled={actionLoading}
-            >
-              Recalculate / Generate Next
-            </button>
-
-            <button
-              className="admin-black-btn"
-              onClick={() => navigate("/cup")}
-              disabled={actionLoading}
-            >
-              View Cup Page
-            </button>
-          </div>
-        </div>
-
-        <div className="admin-section-card">
-          <h2>Submit Rounds</h2>
-
           <div className="cup-admin-rounds">
-            {ALL_CUP_ROUNDS.map((round) => {
+            {KNOCKOUT_ROUNDS.map((round) => {
               const status = getRoundStatus(round);
 
               return (
                 <div className="cup-admin-round-card" key={round}>
                   <strong>{round}</strong>
                   <span>{status}</span>
+
+                  <button
+                    className="admin-black-btn"
+                    onClick={() => handleGenerateRound(round)}
+                    disabled={actionLoading || status !== "Not generated"}
+                  >
+                    Generate
+                  </button>
 
                   <button
                     className="admin-black-btn"
@@ -371,125 +304,30 @@ function AdminCup() {
           <div className="admin-section-card">
             <h3>Loading cup...</h3>
           </div>
-        ) : groups.length === 0 ? (
-          <div className="admin-section-card">
-            <h3>No groups yet</h3>
-            <p>Click Generate Group Stage to create the groups.</p>
-          </div>
         ) : (
-          <>
-            <div className="admin-section-card">
-              <h2>Knockout Stage</h2>
+          <div className="admin-section-card">
+            <h2>Knockout Stage</h2>
 
-              <div className="cup-clean-rounds">
-                {KNOCKOUT_ROUNDS.map((round) => {
-                  const roundMatches = knockoutMatchesByRound[round] || [];
-
-                  return (
-                    <div className="cup-clean-round-card" key={round}>
-                      <h3>{round}</h3>
-
-                      {roundMatches.length === 0 ? (
-                        <p className="cup-no-games">Not generated yet.</p>
-                      ) : (
-                        <div className="cup-clean-match-list">
-                          {roundMatches.map((match) => renderMatch(match))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="cup-clean-groups">
-              {groups.map((group) => {
-                const rows = getGroupStandings(group.name);
-                const isOpen = openGroups[group.name] !== false;
+            <div className="cup-clean-rounds">
+              {KNOCKOUT_ROUNDS.map((round) => {
+                const roundMatches = knockoutMatchesByRound[round] || [];
 
                 return (
-                  <div className="cup-clean-group-card" key={group._id || group.name}>
-                    <button
-                      type="button"
-                      className="cup-clean-group-title cup-group-toggle"
-                      onClick={() => toggleGroup(group.name)}
-                    >
-                      <div className="cup-group-title-left">
-                        <span className="cup-group-dot"></span>
-                        <h2>{group.name}</h2>
-                      </div>
+                  <div className="cup-clean-round-card" key={round}>
+                    <h3>{round}</h3>
 
-                      <span className="cup-group-arrow">
-                        {isOpen ? "⌃" : "⌄"}
-                      </span>
-                    </button>
-
-                    {isOpen && (
-                      <div className="cup-group-body">
-                        <div className="cup-clean-table-wrap">
-                          <table className="cup-clean-table">
-                            <thead>
-                              <tr>
-                                <th>Pos</th>
-                                <th>User</th>
-                                <th>GP</th>
-                                <th>For</th>
-                                <th>Against</th>
-                                <th>GD</th>
-                                <th>PTS</th>
-                              </tr>
-                            </thead>
-
-                            <tbody>
-                              {rows.length === 0 ? (
-                                <tr>
-                                  <td colSpan="7" className="cup-empty-cell">
-                                    No standings yet.
-                                  </td>
-                                </tr>
-                              ) : (
-                                rows.map((row) => (
-                                  <tr key={row.userId}>
-                                    <td>{row.position}</td>
-                                    <td>{row.userName}</td>
-                                    <td>{row.played}</td>
-                                    <td>{row.cupPointsFor}</td>
-                                    <td>{row.cupPointsAgainst}</td>
-                                    <td>{row.cupPointsDifference}</td>
-                                    <td>{row.groupPoints}</td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <div className="cup-clean-rounds">
-                          {GROUP_ROUNDS.map((round) => {
-                            const roundMatches = getRoundMatches(group.name, round);
-
-                            return (
-                              <div className="cup-clean-round-card" key={round}>
-                                <h3>{round}</h3>
-
-                                {roundMatches.length === 0 ? (
-                                  <p className="cup-no-games">No games yet.</p>
-                                ) : (
-                                  <div className="cup-clean-match-list">
-                                    {roundMatches.map((match) => renderMatch(match))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                    {roundMatches.length === 0 ? (
+                      <p className="cup-no-games">Not generated yet.</p>
+                    ) : (
+                      <div className="cup-clean-match-list">
+                        {roundMatches.map((match) => renderMatch(match))}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -93,6 +93,13 @@ const NEXT_ROUND_TEMPLATES = {
   },
 };
 
+const PREVIOUS_ROUND = {
+  "Round of 16": "Round of 32",
+  "Quarter Final": "Round of 16",
+  "Semi Final": "Quarter Final",
+  Final: "Semi Final",
+};
+
 function shuffleArray(array) {
   const copy = [...array];
 
@@ -209,9 +216,7 @@ function getDirectWinnerBetween(groupMatches, userAId, userBId) {
 }
 
 function compareBySportRules(a, b) {
-  if (b.groupPoints !== a.groupPoints) {
-    return b.groupPoints - a.groupPoints;
-  }
+  if (b.groupPoints !== a.groupPoints) return b.groupPoints - a.groupPoints;
 
   if (b.cupPointsDifference !== a.cupPointsDifference) {
     return b.cupPointsDifference - a.cupPointsDifference;
@@ -236,10 +241,7 @@ function sortGroupRowsWithHeadToHead(rows, groupMatches) {
   const pointGroups = {};
 
   rows.forEach((row) => {
-    if (!pointGroups[row.groupPoints]) {
-      pointGroups[row.groupPoints] = [];
-    }
-
+    if (!pointGroups[row.groupPoints]) pointGroups[row.groupPoints] = [];
     pointGroups[row.groupPoints].push(row);
   });
 
@@ -409,13 +411,8 @@ function getScheduleForGroup(groupSize) {
     ];
   }
 
-  if (groupSize === 3) {
-    return [[[0, 1]], [[0, 2]], [[1, 2]]];
-  }
-
-  if (groupSize === 2) {
-    return [[[0, 1]], [], []];
-  }
+  if (groupSize === 3) return [[[0, 1]], [[0, 2]], [[1, 2]]];
+  if (groupSize === 2) return [[[0, 1]], [], []];
 
   return [[], [], []];
 }
@@ -423,9 +420,7 @@ function getScheduleForGroup(groupSize) {
 function splitUsersIntoGroups(users) {
   const totalUsers = users.length;
 
-  if (totalUsers < 2) {
-    throw new Error("Cup needs at least 2 users.");
-  }
+  if (totalUsers < 2) throw new Error("Cup needs at least 2 users.");
 
   if (totalUsers > 48) {
     throw new Error("Cup group stage supports maximum 48 users.");
@@ -446,7 +441,15 @@ async function getNextMatchNumber() {
   return lastMatch ? Number(lastMatch.matchNumber || 0) + 1 : 1;
 }
 
-async function areAllMatchesDoneForRound(gameweek) {
+async function areAllMatchesCompletedForRound(gameweek) {
+  const matches = await CupMatch.find({ gameweek });
+
+  if (matches.length === 0) return false;
+
+  return matches.every((match) => match.isCompleted);
+}
+
+async function areAllKnockoutMatchesDoneForRound(gameweek) {
   const matches = await CupMatch.find({ gameweek });
 
   if (matches.length === 0) return false;
@@ -463,8 +466,7 @@ async function areAllGroupStageMatchesDone() {
   if (matches.length === 0) return false;
 
   return matches.every(
-    (match) =>
-      match.isCompleted && match.winner && match.needsAdminDecision === false
+    (match) => match.isCompleted && match.needsAdminDecision === false
   );
 }
 
@@ -474,17 +476,21 @@ function getFixedGroupSlot(standings, slot) {
 
   const group = standings.find((item) => item.groupLetter === groupLetter);
 
-  if (!group) {
-    throw new Error(`Group ${groupLetter} not found for slot ${slot}.`);
-  }
+  if (!group) throw new Error(`Group ${groupLetter} not found.`);
 
   const row = group.rows[position - 1];
 
-  if (!row) {
-    throw new Error(`Slot ${slot} has no user.`);
-  }
+  if (!row) throw new Error(`Slot ${slot} has no user.`);
 
   return row;
+}
+
+function isThirdSlot(slot) {
+  return String(slot).startsWith("3");
+}
+
+function parseThirdSlot(slot) {
+  return slot.replace("3", "").split("/");
 }
 
 function getBestThirdRows(standings) {
@@ -508,28 +514,17 @@ function getBestThirdRows(standings) {
   return thirds.slice(0, 8);
 }
 
-function parseThirdSlot(slot) {
-  return slot.replace("3", "").split("/");
-}
-
-function isThirdSlot(slot) {
-  return String(slot).startsWith("3");
-}
-
 function assignThirdUsersToSlots(bestThirds, thirdSlots) {
   const assignments = {};
   const usedUserIds = new Set();
 
   const sortedSlots = [...thirdSlots].sort((a, b) => {
-    const aOptions = parseThirdSlot(a.slot);
-    const bOptions = parseThirdSlot(b.slot);
-
     const aCandidates = bestThirds.filter((third) =>
-      aOptions.includes(third.groupLetter)
+      parseThirdSlot(a.slot).includes(third.groupLetter)
     ).length;
 
     const bCandidates = bestThirds.filter((third) =>
-      bOptions.includes(third.groupLetter)
+      parseThirdSlot(b.slot).includes(third.groupLetter)
     ).length;
 
     return aCandidates - bCandidates;
@@ -539,11 +534,12 @@ function assignThirdUsersToSlots(bestThirds, thirdSlots) {
     if (index >= sortedSlots.length) return true;
 
     const current = sortedSlots[index];
-    const options = parseThirdSlot(current.slot);
+    const allowedGroups = parseThirdSlot(current.slot);
 
     const candidates = bestThirds.filter((third) => {
       return (
-        options.includes(third.groupLetter) && !usedUserIds.has(third.userId)
+        allowedGroups.includes(third.groupLetter) &&
+        !usedUserIds.has(third.userId)
       );
     });
 
@@ -564,7 +560,7 @@ function assignThirdUsersToSlots(bestThirds, thirdSlots) {
 
   if (!success) {
     throw new Error(
-      "Could not assign qualified third-place users to the Round of 32 slots."
+      "Could not assign best third-place users to the FIFA Round of 32 slots."
     );
   }
 
@@ -573,6 +569,12 @@ function assignThirdUsersToSlots(bestThirds, thirdSlots) {
 
 function buildRoundOf32Participants(standings) {
   const bestThirds = getBestThirdRows(standings);
+
+  if (bestThirds.length !== 8) {
+    throw new Error(
+      `Round of 32 needs 8 best third-place users. Current: ${bestThirds.length}`
+    );
+  }
 
   const thirdSlots = ROUND_OF_32_TEMPLATE.filter(
     (match) => isThirdSlot(match.a) || isThirdSlot(match.b)
@@ -592,10 +594,6 @@ function buildRoundOf32Participants(standings) {
       ? thirdAssignments[match.no]
       : getFixedGroupSlot(standings, match.b);
 
-    if (!userA || !userB) {
-      throw new Error(`Could not build Match ${match.no}.`);
-    }
-
     return {
       no: match.no,
       slotA: match.a,
@@ -606,23 +604,23 @@ function buildRoundOf32Participants(standings) {
   });
 }
 
-async function generateRoundOf32IfReady() {
-  const existingRound32 = await CupMatch.countDocuments({
+async function generateRoundOf32() {
+  const existing = await CupMatch.countDocuments({
     gameweek: "Round of 32",
   });
 
-  if (existingRound32 > 0) return;
+  if (existing > 0) {
+    throw new Error("Round of 32 already generated.");
+  }
 
   const groupStageDone = await areAllGroupStageMatchesDone();
 
-  if (!groupStageDone) return;
+  if (!groupStageDone) {
+    throw new Error("Group stage is not fully submitted yet.");
+  }
 
   const standings = await buildGroupStandings();
   const roundOf32Matches = buildRoundOf32Participants(standings);
-
-  if (roundOf32Matches.length !== 16) {
-    throw new Error("Round of 32 needs exactly 16 matches.");
-  }
 
   let matchNumber = await getNextMatchNumber();
 
@@ -650,25 +648,28 @@ async function generateRoundOf32IfReady() {
   }
 }
 
-async function generateNextKnockoutRoundIfReady(currentRound) {
+async function generateNextKnockoutRound(currentRound) {
   const template = NEXT_ROUND_TEMPLATES[currentRound];
 
-  if (!template) return;
+  if (!template) {
+    throw new Error(`No next round after ${currentRound}.`);
+  }
 
-  const currentDone = await areAllMatchesDoneForRound(currentRound);
-
-  if (!currentDone) return;
-
-  const existingNextRound = await CupMatch.countDocuments({
+  const existingNext = await CupMatch.countDocuments({
     gameweek: template.nextRound,
   });
 
-  if (existingNextRound > 0) return;
+  if (existingNext > 0) {
+    throw new Error(`${template.nextRound} already generated.`);
+  }
 
-  const allKnockoutMatches = await CupMatch.find({
-    phase: "Knockout",
-  });
+  const currentDone = await areAllKnockoutMatchesDoneForRound(currentRound);
 
+  if (!currentDone) {
+    throw new Error(`${currentRound} is not fully submitted yet.`);
+  }
+
+  const allKnockoutMatches = await CupMatch.find({ phase: "Knockout" });
   const matchMap = {};
 
   allKnockoutMatches.forEach((match) => {
@@ -684,7 +685,7 @@ async function generateNextKnockoutRoundIfReady(currentRound) {
     const sourceB = matchMap[item.b];
 
     if (!sourceA || !sourceB || !sourceA.winner || !sourceB.winner) {
-      throw new Error(`Cannot generate Match ${item.no}. Missing winners.`);
+      throw new Error(`Cannot generate Match ${item.no}. Missing winner.`);
     }
 
     await CupMatch.create({
@@ -712,27 +713,30 @@ async function generateNextKnockoutRoundIfReady(currentRound) {
   }
 }
 
-async function generateNextStageAfterRound(gameweek) {
-  if (gameweek === "Round 3") {
-    await generateRoundOf32IfReady();
+async function generateRequestedRound(gameweek) {
+  if (gameweek === "Round of 32") {
+    await generateRoundOf32();
+    return;
   }
 
-  if (KNOCKOUT_ROUNDS.includes(gameweek)) {
-    await generateNextKnockoutRoundIfReady(gameweek);
+  const previousRound = PREVIOUS_ROUND[gameweek];
+
+  if (!previousRound) {
+    throw new Error(`Cannot manually generate ${gameweek}.`);
   }
+
+  await generateNextKnockoutRound(previousRound);
 }
 
-async function deleteFutureRoundsFrom(gameweek) {
+async function deleteRoundAndFuture(gameweek) {
   const index = ALL_CUP_ROUNDS.indexOf(gameweek);
 
   if (index === -1) return;
 
-  const futureRounds = ALL_CUP_ROUNDS.slice(index + 1);
-
-  if (futureRounds.length === 0) return;
+  const roundsToDelete = ALL_CUP_ROUNDS.slice(index);
 
   await CupMatch.deleteMany({
-    gameweek: { $in: futureRounds },
+    gameweek: { $in: roundsToDelete },
   });
 }
 
@@ -746,8 +750,6 @@ async function loadCupPayload(message = "") {
     .populate("userB", "fullName role")
     .populate("winner", "fullName role")
     .populate("adminWinner", "fullName role")
-    .populate("sourceMatchA")
-    .populate("sourceMatchB")
     .sort({ matchNumber: 1 });
 
   const standings = await buildGroupStandings();
@@ -879,6 +881,28 @@ router.get("/standings", protect, async (req, res) => {
 router.post("/generate-group-stage", protect, adminOnly, generateRandomGroupStage);
 router.post("/generate-groups", protect, adminOnly, generateRandomGroupStage);
 
+router.post("/generate-round/:gameweek", protect, adminOnly, async (req, res) => {
+  try {
+    const gameweek = decodeURIComponent(req.params.gameweek);
+
+    if (!KNOCKOUT_ROUNDS.includes(gameweek)) {
+      return res.status(400).json({
+        message: "Only knockout rounds can be generated manually.",
+      });
+    }
+
+    await generateRequestedRound(gameweek);
+
+    const payload = await loadCupPayload(`${gameweek} generated successfully.`);
+
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Failed to generate Cup round.",
+    });
+  }
+});
+
 router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
   try {
     const gameweek = decodeURIComponent(req.params.gameweek);
@@ -897,6 +921,8 @@ router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
       });
     }
 
+    const isGroupStageRound = GROUP_ROUNDS.includes(gameweek);
+
     for (const match of matches) {
       const scoreA = await getUserCupPointsForRound(match.userA, gameweek);
       const scoreB = await getUserCupPointsForRound(match.userB, gameweek);
@@ -912,6 +938,9 @@ router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
         match.winner = match.userA;
       } else if (scoreB > scoreA) {
         match.winner = match.userB;
+      } else if (isGroupStageRound) {
+        match.winner = null;
+        match.needsAdminDecision = false;
       } else {
         match.winner = null;
         match.needsAdminDecision = true;
@@ -919,8 +948,6 @@ router.post("/submit-round/:gameweek", protect, adminOnly, async (req, res) => {
 
       await match.save();
     }
-
-    await generateNextStageAfterRound(gameweek);
 
     const payload = await loadCupPayload(`${gameweek} submitted successfully.`);
 
@@ -942,21 +969,23 @@ router.post("/reset-round/:gameweek", protect, adminOnly, async (req, res) => {
       });
     }
 
-    await deleteFutureRoundsFrom(gameweek);
-
-    await CupMatch.updateMany(
-      { gameweek },
-      {
-        $set: {
-          cupScoreA: 0,
-          cupScoreB: 0,
-          winner: null,
-          adminWinner: null,
-          isCompleted: false,
-          needsAdminDecision: false,
-        },
-      }
-    );
+    if (GROUP_ROUNDS.includes(gameweek)) {
+      await CupMatch.updateMany(
+        { gameweek },
+        {
+          $set: {
+            cupScoreA: 0,
+            cupScoreB: 0,
+            winner: null,
+            adminWinner: null,
+            isCompleted: false,
+            needsAdminDecision: false,
+          },
+        }
+      );
+    } else {
+      await deleteRoundAndFuture(gameweek);
+    }
 
     const payload = await loadCupPayload(`${gameweek} reset successfully.`);
 
@@ -970,12 +999,6 @@ router.post("/reset-round/:gameweek", protect, adminOnly, async (req, res) => {
 
 router.post("/recalculate", protect, adminOnly, async (req, res) => {
   try {
-    await generateRoundOf32IfReady();
-
-    for (const round of KNOCKOUT_ROUNDS) {
-      await generateNextKnockoutRoundIfReady(round);
-    }
-
     const payload = await loadCupPayload("Cup recalculated successfully.");
 
     return res.json(payload);
@@ -1012,8 +1035,6 @@ router.post("/set-admin-winner/:matchId", protect, adminOnly, async (req, res) =
     match.isCompleted = true;
 
     await match.save();
-
-    await generateNextStageAfterRound(match.gameweek);
 
     const payload = await loadCupPayload("Tie winner selected successfully.");
 
