@@ -5,16 +5,11 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import authRoutes from "./routes/authRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
-import fixtureRoutes from "./routes/fixtureRoutes.js";
-import predictionRoutes from "./routes/predictionRoutes.js";
-import resultRoutes from "./routes/resultRoutes.js";
-import leaderboardRoutes from "./routes/leaderboardRoutes.js";
-import settingRoutes from "./routes/settingRoutes.js";
-import cupRoutes from "./routes/cupRoutes.js";
+console.log("SERVER FILE STARTED");
 
 dotenv.config();
+
+console.log("DOTENV LOADED");
 
 const app = express();
 
@@ -29,33 +24,91 @@ app.use(
   })
 );
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log("MongoDB error:", err));
+console.log("EXPRESS + CORS READY");
 
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/fixtures", fixtureRoutes);
-app.use("/api/predictions", predictionRoutes);
-app.use("/api/results", resultRoutes);
-app.use("/api/leaderboard", leaderboardRoutes);
-app.use("/api/settings", settingRoutes);
-app.use("/api/cup", cupRoutes);
+async function startServer() {
+  try {
+    console.log("IMPORTING ROUTES...");
 
+    const { default: authRoutes } = await import("./routes/authRoutes.js");
+    console.log("authRoutes imported");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const frontendPath = path.join(__dirname, "../dist");
+    const { default: userRoutes } = await import("./routes/userRoutes.js");
+    console.log("userRoutes imported");
 
-app.use(express.static(frontendPath));
+    const { default: fixtureRoutes } = await import("./routes/fixtureRoutes.js");
+    console.log("fixtureRoutes imported");
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
+    const { default: predictionRoutes } = await import(
+      "./routes/predictionRoutes.js"
+    );
+    console.log("predictionRoutes imported");
 
-const PORT = process.env.PORT || 5000;
+    const { default: resultRoutes } = await import("./routes/resultRoutes.js");
+    console.log("resultRoutes imported");
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    const { default: leaderboardRoutes } = await import(
+      "./routes/leaderboardRoutes.js"
+    );
+    console.log("leaderboardRoutes imported");
+
+    const { default: settingRoutes } = await import("./routes/settingRoutes.js");
+    console.log("settingRoutes imported");
+
+    const { default: cupRoutes } = await import("./routes/cupRoutes.js");
+    console.log("cupRoutes imported");
+
+    app.use("/api/auth", authRoutes);
+    app.use("/api/users", userRoutes);
+    app.use("/api/fixtures", fixtureRoutes);
+    app.use("/api/predictions", predictionRoutes);
+    app.use("/api/results", resultRoutes);
+    app.use("/api/leaderboard", leaderboardRoutes);
+    app.use("/api/settings", settingRoutes);
+    app.use("/api/cup", cupRoutes);
+
+    console.log("ALL ROUTES REGISTERED");
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
+    const frontendPath = path.join(__dirname, "../dist");
+
+    console.log("FRONTEND PATH:", frontendPath);
+
+    app.use(express.static(frontendPath));
+
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(frontendPath, "index.html"));
+    });
+
+    const PORT = process.env.PORT || 5000;
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+    console.log("CHECKING MONGO_URI...");
+
+    if (!process.env.MONGO_URI) {
+      console.log("MONGO_URI IS MISSING");
+      return;
+    }
+
+    console.log("CONNECTING TO MONGODB...");
+
+    mongoose
+      .connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 10000,
+      })
+      .then(() => console.log("MongoDB connected"))
+      .catch((err) => console.log("MongoDB error:", err.message));
+  } catch (err) {
+    console.log("SERVER STARTUP ERROR:");
+    console.log(err.message);
+    console.log(err.stack);
+    process.exit(1);
+  }
+}
+
+startServer();
